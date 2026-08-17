@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "humanizer",
+  "description": "Rewrite Czech and English prose so it is precise, readable, and naturally human.",
+  "version": "1.0.0",
+  "author": {
+    "name": "lulz1337",
+    "url": "https://github.com/lulz1337"
+  },
+  "homepage": "https://github.com/lulz1337/skills",
+  "repository": "https://github.com/lulz1337/skills",
+  "license": "MIT",
+  "keywords": ["writing", "editing", "ai-detection", "humanize", "prose", "style"]
+}

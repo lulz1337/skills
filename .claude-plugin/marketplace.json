@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace-manifest.json",
+  "name": "skills",
+  "owner": {
+    "name": "lulz1337",
+    "url": "https://github.com/lulz1337"
+  },
+  "description": "Portable agent skills, installable as Claude Code plugins.",
+  "plugins": [
+    {
+      "name": "humanizer",
+      "source": "./humanizer",
+      "description": "Rewrite Czech and English prose so it is precise, readable, and naturally human. Removes common AI-writing patterns.",
+      "license": "MIT",
+      "keywords": ["writing", "editing", "ai-detection", "humanize", "prose", "style"]
+    }
+  ]
+}
