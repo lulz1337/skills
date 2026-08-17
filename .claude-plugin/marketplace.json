@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "humanizer",
-      "source": "./humanizer",
+      "source": "./skills/humanizer",
       "description": "Rewrite prose so it is precise, readable, and naturally human. English by default; Czech, Slovak, Polish, German, and Ukrainian on request. Removes common AI-writing patterns.",
       "license": "MIT",
       "keywords": ["writing", "editing", "ai-detection", "humanize", "prose", "style"]

@@ -20,7 +20,12 @@ jobs:
         with:
           python-version: "3.12"
       - name: Validate synchronized package metadata
-        run: python3 humanizer/scripts/validate-package.py
+        run: |
+          shopt -s nullglob
+          for validator in skills/*/scripts/validate-package.py; do
+            echo "Running $validator"
+            python3 "$validator"
+          done
       - name: Verify Agent Skills discovery
         run: npx --yes skills@1.5.20 add . --list
       - name: Validate Claude Code marketplace

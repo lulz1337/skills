@@ -12,7 +12,7 @@ can run in any harness that supports skill-style instructions.
 Install with the skills CLI:
 
 ```bash
-npx skills add lulz1337/skills
+npx skills add lulz1337/skills --skill humanizer
 ```
 
 Or install it as a Claude Code plugin:
@@ -22,7 +22,7 @@ Or install it as a Claude Code plugin:
 /plugin install humanizer@skills
 ```
 
-Or copy the `humanizer` folder into the skill directory of your agent harness.
+Or copy this folder into the skill directory of your agent harness.
 
 ## Usage
 
