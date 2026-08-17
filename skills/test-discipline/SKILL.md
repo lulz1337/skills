@@ -63,7 +63,8 @@ The workflow:
    - [`rules/scope.md`](rules/scope.md) — what a test must never test: logs,
      third-party dependencies, the implementation itself (TD10–TD14)
    - [`rules/isolation.md`](rules/isolation.md) — what each layer may touch:
-     unmocked e2e, fully-supplied integration/functional inputs (TD20–TD22)
+     unmocked e2e, fully-supplied integration/functional inputs, UI driven
+     as the user drives it (TD20–TD23)
    - [`rules/speed.md`](rules/speed.md) — why suites get slow and how not to:
      type-only imports, shallow module graphs, no sleeps (TD30–TD32)
    - [`rules/failures.md`](rules/failures.md) — what to do with a red test;
@@ -84,7 +85,9 @@ The workflow:
 - **HIGH** — wrong or missing value: implementation mirrors (TD12), the same
   scenario duplicated across layers (TD02), business logic without a unit
   test (TD04), focused/skipped tests left committed (TD41), an e2e spec that
-  is not a critical journey (TD03).
+  is not a critical journey (TD03), UI driven through internals — structural
+  selectors, synthetic events, direct handler calls — instead of the way the
+  user drives it (TD23; pure-logic unit tests are exempt).
 - **MEDIUM** — real cost without necessity: value imports where type imports
   suffice (TD30), sleeps and real timers (TD31), per-test world building
   (TD32), snapshot misuse (TD13).
@@ -139,6 +142,8 @@ never up. Details and the classification questions: `rules/layers.md`.
 - [ ] No test asserts on logs; no test's subject is a third-party dependency.
 - [ ] Nothing labelled e2e contains a double; nothing labelled
       integration/functional touches real infrastructure.
+- [ ] UI tests locate by role/label/visible text and interact through user
+      actions; logic is unit-tested directly, not through the UI.
 - [ ] Type-only needs use type-only imports; no sleeps; suites stay fast.
 - [ ] Every changed pure business-logic function has a unit test.
 - [ ] For every kept test I can state the real failure it catches.

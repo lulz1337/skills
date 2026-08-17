@@ -64,3 +64,31 @@ collaborators of the unit under test; that produces implementation mirrors
   state is a top flake source.
 - A green suite built on doubles proves behaviour, not wiring — wiring proof
   is the e2e layer's job, don't fake it here.
+
+## TD23 — drive the UI as the user does (HIGH)
+
+Applies to every test that renders or drives a user interface, at any layer
+(integration/functional UI tests and e2e alike):
+
+- **Locate elements the way the user perceives them**: by role, then by
+  visible label/text, with a dedicated test identifier as the last resort.
+  Structural selectors (CSS classes, XPath, DOM paths, component internals)
+  need a stated justification — they break on every markup refactor without
+  any behaviour changing.
+- **Interact through user actions**: click the button the user sees, type
+  into the field, submit the form. Never call an internal handler directly
+  or fire synthetic events on internal nodes — that tests wiring you
+  imagined, not the interface the user gets.
+- **Assert what the user sees or receives**, not the component's internal
+  state.
+
+Why: what you cannot find by role or label, the user (and their screen
+reader) cannot find either — the test guards accessibility for free, and it
+keeps passing across markup refactors because it is coupled to behaviour,
+not structure.
+
+**The exception is logic.** A pure function extracted from a component —
+formatting, validation, calculation, a state reducer — is unit-tested
+directly through its inputs and outputs (TD04): no rendering, no queries,
+no user simulation. This rule governs tests OF the interface; it must not
+push logic testing up into the UI.

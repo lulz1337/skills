@@ -89,6 +89,17 @@ LINE_CHECKS = [
         "snapshot — allowed only for data contracts, pure-function output, "
         "error messages, or generated code",
     ),
+    (
+        "TD23", "HIGH", True,
+        re.compile(
+            r"(querySelector(All)?\s*\(|getElementsBy\w+\s*\(|getElementById\s*\("
+            r"|\bxpath\s*[=(]|locator\s*\(\s*['\"](//|\.[a-zA-Z]|#[a-zA-Z])"
+            r"|dispatchEvent\s*\()"
+        ),
+        "UI reached through structure (CSS/XPath/DOM selector or synthetic "
+        "event) — locate by role/label/visible text and interact through "
+        "user actions; pure-logic unit tests are exempt",
+    ),
 ]
 
 INFRA = re.compile(
