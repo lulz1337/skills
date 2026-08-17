@@ -13,6 +13,13 @@
       "description": "Rewrite prose so it is precise, readable, and naturally human. English by default; Czech, Slovak, Polish, German, and Ukrainian on request. Removes common AI-writing patterns.",
       "license": "MIT",
       "keywords": ["writing", "editing", "ai-detection", "humanize", "prose", "style"]
+    },
+    {
+      "name": "diagram-design",
+      "source": "./skills/diagram-design",
+      "description": "Create branded diagrams as standalone HTML/SVG/PNG in 27 visual types, with brand onboarding and draw.io/Mermaid import.",
+      "license": "MIT",
+      "keywords": ["diagrams", "architecture", "flowchart", "svg", "charts", "design-system"]
     }
   ]
 }

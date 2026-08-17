@@ -11,6 +11,10 @@ installation steps, usage, and everything else it needs.
   Polish, German, and Ukrainian on request. Detects and removes 33 common
   AI-writing patterns and applies a controlled-language and Zinsser writing
   standard.
+- [**diagram-design**](skills/diagram-design/) — Create branded diagrams as
+  standalone HTML/SVG/PNG in 27 visual types, from architecture and
+  flowcharts to Gantt and ER models. Onboards brand tokens from a website or
+  design system and redraws draw.io and Mermaid sources.
 
 ## License
 
