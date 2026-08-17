@@ -1,7 +1,8 @@
 # Humanizer
 
-An agent skill that rewrites Czech and English text so it is precise,
-readable, and naturally human. It removes common AI writing patterns and uses
+An agent skill that rewrites text so it is precise, readable, and naturally
+human. English output is the default; you can select Czech, Slovak, Polish,
+German, or Ukrainian instead. It removes common AI writing patterns and uses
 controlled-language principles inspired by ASD-STE100 together with William
 Zinsser's clarity, simplicity, brevity, and humanity. It is plain Markdown, so it
 can run in any harness that supports skill-style instructions.
@@ -37,18 +38,19 @@ Invoke the skill however your agent harness exposes installed skills. Common for
 Please humanize this text: [your text]
 ```
 
-Select the output language explicitly when needed:
+English is the default output language. To get another supported language
+(Czech, Slovak, Polish, German, or Ukrainian), name it in the request:
 
 ```
 Use the Czech humanizer on this text: [your text]
 ```
 
 ```
-Use the English humanizer on this text: [your text]
+Use the Polish humanizer on this text: [your text]
 ```
 
-The skill otherwise preserves the source language. It does not translate unless
-you ask it to.
+If the source text is not in English and you name no language, the skill asks
+you to select one before it rewrites. It never translates silently.
 
 Point it at a file and the skill rewrites it in place:
 
@@ -88,11 +90,13 @@ sentence, concrete verbs, explicit actors, unambiguous references, and ordered
 steps for complicated instructions. Zinsser shapes the result: clear, simple,
 brief, and human.
 
-The skill applies these requirements to both Czech and English. It does not claim
-formal ASD-STE100 compliance unless English output has been checked against the
-current official standard and controlled dictionary. Czech output follows the
-same principles in natural Czech but cannot formally comply with an English-only
-standard. Accuracy and necessary context always take priority over brevity.
+The skill applies these requirements to every supported language: English,
+Czech, Slovak, Polish, German, and Ukrainian. It does not claim formal
+ASD-STE100 compliance unless English output has been checked against the
+current official standard and controlled dictionary. Output in the other
+languages follows the same principles in natural prose of that language but
+cannot formally comply with an English-only standard. Accuracy and necessary
+context always take priority over brevity.
 
 ### Key Insight from Wikipedia
 
@@ -197,6 +201,7 @@ standard. Accuracy and necessary context always take priority over brevity.
 
 ## Version History
 
+- **1.1.0** - Made English the default output language and added Slovak, Polish, German, and Ukrainian alongside Czech as explicit selections. The skill now asks for a language instead of guessing when the source text is not in English. No change to the 33 patterns.
 - **1.0.0** - Initial release: 33 detected AI-writing patterns, Czech and English output, voice calibration, a no-fabrication rule, and a mandatory controlled-language and Zinsser writing standard.
 
 ## License

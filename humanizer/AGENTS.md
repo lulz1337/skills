@@ -4,7 +4,7 @@ Guidance for AI coding agents (Claude Code, Codex, Warp, etc.) working in this r
 
 ## What this skill is
 
-A portable agent skill that rewrites Czech and English prose. The runtime artifact is `SKILL.md`: the agent reads its YAML frontmatter and editor prompt. The skill produces bilingual Czech and English output and enforces a mandatory controlled-language and Zinsser writing standard. There is no build step, and the skill should avoid wording that limits support to one or two harnesses.
+A portable agent skill that rewrites prose. The runtime artifact is `SKILL.md`: the agent reads its YAML frontmatter and editor prompt. The skill writes English by default, offers Czech, Slovak, Polish, German, and Ukrainian as explicit selections, and enforces a mandatory controlled-language and Zinsser writing standard. There is no build step, and the skill should avoid wording that limits support to one or two harnesses.
 
 ## Key files
 

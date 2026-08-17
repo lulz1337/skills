@@ -1,16 +1,18 @@
 ---
 name: humanizer
 description: |
-  Rewrite or review Czech and English prose so it is technically precise, easy
-  to read, and naturally human. Use for requests such as humanizer, Czech
-  humanizer, český humanizer, English humanizer, or anglický humanizer. Apply
+  Rewrite or review prose so it is technically precise, easy to read, and
+  naturally human. English output is the default; the user can select Czech,
+  Slovak, Polish, German, or Ukrainian instead. Use for requests such as
+  humanizer or a language-specific humanizer (Czech, český, Slovak,
+  slovenský, Polish, polský, German, německý, Ukrainian, ukrajinský). Apply
   ASD-STE100-inspired controlled-language construction and Zinsser's clarity,
-  simplicity, brevity, and humanity while preserving facts, meaning, voice, and
-  necessary context. Remove jargon, filler, convoluted syntax, and common AI
-  writing patterns.
+  simplicity, brevity, and humanity while preserving facts, meaning, voice,
+  and necessary context. Remove jargon, filler, convoluted syntax, and common
+  AI writing patterns.
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Humanizer: Remove AI Writing Patterns
@@ -30,7 +32,7 @@ How you're invoked changes what you deliver (see Invocation Modes). The draft �
 
 ## Critical Writing Standard
 
-Apply this section to every rewrite in both Czech and English. It outranks the pattern list and voice matching when the rules conflict. A writing sample can shape tone and rhythm, but it cannot make the final text less precise, clear, or readable.
+Apply this section to every rewrite in every supported language (Czech, Slovak, Polish, German, Ukrainian, and English). It outranks the pattern list and voice matching when the rules conflict. A writing sample can shape tone and rhythm, but it cannot make the final text less precise, clear, or readable.
 
 Write technically precise, easy-to-read prose that does not sound stiff. Remove jargon, filler, convoluted sentences, and stock AI language. Do not remove facts, qualifications, constraints, or necessary context to make the text shorter.
 
@@ -55,14 +57,15 @@ These roles are complementary: controlled-language principles make the text prec
 
 ### Language Selection
 
-1. Use Czech when the user asks for a Czech or `český` humanizer.
-2. Use English when the user asks for an English or `anglický` humanizer.
-3. Otherwise, preserve the source language. Do not translate unless the user asks.
-4. Apply the same accuracy, clarity, simplicity, brevity, and humanity requirements in both languages.
+1. The skill supports English (the default), Czech, Slovak, Polish, German, and Ukrainian.
+2. Use the language the user names, in any phrasing: "Czech humanizer", "český humanizer", "slovenský humanizer", "Polish humanizer", "německý humanizer", "Ukrainian humanizer", and so on.
+3. When the user names no language and the source text is in English, write the rewrite in English.
+4. When the user names no language and the source text is not in English, do not guess and do not translate silently. Ask the user to select one of the supported languages, then rewrite.
+5. Apply the same accuracy, clarity, simplicity, brevity, and humanity requirements in every language.
 
 For English, treat ASD-STE100 as inspiration unless you have checked the text against the current official standard and controlled dictionary. Never claim formal compliance without that check.
 
-For Czech, apply the same controlled-language principles in natural Czech. Avoid literal English calques and respect Czech word order, inflection, and idiom. ASD-STE100 formally governs English, so never describe Czech output as compliant with ASD-STE100.
+For Czech, Slovak, Polish, German, and Ukrainian, apply the same controlled-language principles in natural prose of that language. Avoid literal English calques and respect each language's word order, inflection, and idiom. ASD-STE100 formally governs English, so never describe non-English output as compliant with ASD-STE100.
 
 ## Voice Calibration
 
@@ -436,7 +439,7 @@ When you see these, lean toward leaving the prose alone — they are evidence of
 ## Process and Output
 
 1. Read the input carefully and identify every instance of the patterns above.
-2. Select Czech or English according to Language Selection. Write a **draft rewrite**. Check that it reads naturally aloud, varies sentence length, uses one term for each concept, prefers specific details and simple constructions (is/are/has), and keeps the appropriate register.
+2. Select the output language according to Language Selection. Write a **draft rewrite**. Check that it reads naturally aloud, varies sentence length, uses one term for each concept, prefers specific details and simple constructions (is/are/has), and keeps the appropriate register.
 3. Ask two questions: **"What makes the below so obviously AI generated?"** and **"Does the rewrite state any fact, name, number, date, or citation that isn't in the source?"** Answer briefly. A fabrication is a defect even when it sounds more human than the vague original.
 4. Check the draft against the Critical Writing Standard. Revise into a **final rewrite** that addresses every failure and contains no em or en dashes (see §14).
 

@@ -6,10 +6,10 @@ OpenCode, Codex, and others).
 
 ## Skills
 
-- [**humanizer**](humanizer/) — Rewrite Czech and English prose so it is
-  precise, readable, and naturally human. Detects and removes 33 common
-  AI-writing patterns and applies a controlled-language and Zinsser writing
-  standard.
+- [**humanizer**](humanizer/) — Rewrite prose so it is precise, readable, and
+  naturally human. English output by default; Czech, Slovak, Polish, German,
+  and Ukrainian on request. Detects and removes 33 common AI-writing patterns
+  and applies a controlled-language and Zinsser writing standard.
 
 ## Installation
 

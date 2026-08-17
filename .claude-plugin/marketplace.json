@@ -10,7 +10,7 @@
     {
       "name": "humanizer",
       "source": "./humanizer",
-      "description": "Rewrite Czech and English prose so it is precise, readable, and naturally human. Removes common AI-writing patterns.",
+      "description": "Rewrite prose so it is precise, readable, and naturally human. English by default; Czech, Slovak, Polish, German, and Ukrainian on request. Removes common AI-writing patterns.",
       "license": "MIT",
       "keywords": ["writing", "editing", "ai-detection", "humanize", "prose", "style"]
     }

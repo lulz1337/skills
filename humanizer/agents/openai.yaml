@@ -1,4 +1,4 @@
 interface:
   display_name: "Humanizer"
-  short_description: "Humanize precise Czech or English prose"
-  default_prompt: "Use $humanizer to rewrite this Czech or English text clearly and naturally while preserving its meaning, facts, and necessary context."
+  short_description: "Humanize prose in English or a selected language"
+  default_prompt: "Use $humanizer to rewrite this text clearly and naturally while preserving its meaning, facts, and necessary context. English output is the default; select Czech, Slovak, Polish, German, or Ukrainian explicitly."
