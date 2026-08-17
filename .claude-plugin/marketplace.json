@@ -20,6 +20,13 @@
       "description": "Create branded diagrams as standalone HTML/SVG/PNG in 27 visual types, with brand onboarding and draw.io/Mermaid import.",
       "license": "MIT",
       "keywords": ["diagrams", "architecture", "flowchart", "svg", "charts", "design-system"]
+    },
+    {
+      "name": "test-discipline",
+      "source": "./skills/test-discipline",
+      "description": "Stack-agnostic test hygiene: severity-graded reviews that mark tests OK / FIX / DELETE / MISSING.",
+      "license": "MIT",
+      "keywords": ["testing", "test-pyramid", "hygiene", "review", "quality", "e2e"]
     }
   ]
 }

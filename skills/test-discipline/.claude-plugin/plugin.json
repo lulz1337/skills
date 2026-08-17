@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "test-discipline",
+  "description": "Stack-agnostic test hygiene: severity-graded reviews that mark tests OK / FIX / DELETE / MISSING.",
+  "version": "1.0.0",
+  "author": {
+    "name": "lulz1337",
+    "url": "https://github.com/lulz1337"
+  },
+  "homepage": "https://github.com/lulz1337/skills",
+  "repository": "https://github.com/lulz1337/skills",
+  "license": "MIT",
+  "keywords": ["testing", "test-pyramid", "hygiene", "review", "quality", "e2e"]
+}

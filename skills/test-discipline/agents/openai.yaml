@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test Discipline"
+  short_description: "Severity-graded test hygiene review for any stack"
+  default_prompt: "Use $test-discipline whenever tests are written, edited, fixed, or reviewed: classify each test by layer, run the checker, and end with the severity-graded review marking tests OK / FIX / DELETE / MISSING."
