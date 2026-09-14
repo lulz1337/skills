@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "write-prompt",
+  "description": "Write, improve, or translate a prompt: repository context, model-specific guidance from official documentation, and a mandatory independent review.",
+  "version": "1.0.0",
+  "author": {
+    "name": "lulz1337",
+    "url": "https://github.com/lulz1337"
+  },
+  "homepage": "https://github.com/lulz1337/skills",
+  "repository": "https://github.com/lulz1337/skills",
+  "license": "MIT",
+  "keywords": ["prompt-engineering", "prompts", "review", "claude", "openai", "gemini"]
+}

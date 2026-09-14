@@ -1,0 +1,6 @@
+policy:
+  allow_implicit_invocation: false
+interface:
+  display_name: "Write Prompt"
+  short_description: "Write a reviewed, ready-to-copy prompt for a chosen target"
+  default_prompt: "Use $write-prompt to write a ready-to-copy prompt for this task. Add only the repository context that changes execution, adapt it to the named target model using official documentation, and have an independent reviewer check it before delivery."
