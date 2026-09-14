@@ -27,6 +27,20 @@
       "description": "Stack-agnostic test hygiene: severity-graded reviews that mark tests OK / FIX / DELETE / MISSING.",
       "license": "MIT",
       "keywords": ["testing", "test-pyramid", "hygiene", "review", "quality", "e2e"]
+    },
+    {
+      "name": "write-prompt",
+      "source": "./skills/write-prompt",
+      "description": "Write, improve, or translate a prompt: repository context, model-specific guidance from official documentation, and a mandatory independent review.",
+      "license": "MIT",
+      "keywords": ["prompt-engineering", "prompts", "review", "claude", "openai", "gemini"]
+    },
+    {
+      "name": "video-proof",
+      "source": "./skills/video-proof",
+      "description": "Record a verified Playwriter video that demonstrates a completed fix or story, with build provenance, artifact validation, and Git safety checks.",
+      "license": "MIT",
+      "keywords": ["video", "playwright", "playwriter", "demo", "verification", "browser"]
     }
   ]
 }

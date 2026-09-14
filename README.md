@@ -19,6 +19,15 @@ installation steps, usage, and everything else it needs.
   standalone HTML/SVG/PNG in 27 visual types, from architecture and
   flowcharts to Gantt and ER models. Onboards brand tokens from a website or
   design system and redraws draw.io and Mermaid sources.
+- [**write-prompt**](skills/write-prompt/) — Write, improve, or translate a
+  prompt instead of doing the task. Adds only the repository context that
+  changes execution, adapts to a named target model using its official
+  documentation, and requires an independent reviewer with no inherited
+  conversation history.
+- [**video-proof**](skills/video-proof/) — Record a short Playwriter video
+  that proves a finished fix or story works. Ties the recording to the current
+  worktree and build, validates the file frame by frame, and keeps it out of
+  Git.
 
 ## License
 
