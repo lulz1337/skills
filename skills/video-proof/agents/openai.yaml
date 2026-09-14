@@ -1,0 +1,6 @@
+policy:
+  allow_implicit_invocation: false
+interface:
+  display_name: "Video Proof"
+  short_description: "Record a validated browser video of completed work"
+  default_prompt: "Use $video-proof to record a short Playwriter video of the finished change. Run the application from the current worktree, demonstrate the acceptance criteria with real user actions, validate the file, and list what the video cannot prove."
