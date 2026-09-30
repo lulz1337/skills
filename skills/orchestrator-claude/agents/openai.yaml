@@ -1,0 +1,6 @@
+policy:
+  allow_implicit_invocation: false
+interface:
+  display_name: "Orchestrator (Claude)"
+  short_description: "Delegate a task to a Claude minion and reviewer pair chosen by mode"
+  default_prompt: "Use $orchestrator-claude standard to run this task: delegate the work to a minion, have a reviewer review it, adjudicate the findings, and report."
