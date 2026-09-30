@@ -1,0 +1,6 @@
+policy:
+  allow_implicit_invocation: false
+interface:
+  display_name: "Orchestrator (Codex)"
+  short_description: "Delegate a task to Codex minion and reviewer processes chosen by mode"
+  default_prompt: "Use $orchestrator-codex standard to run this task: delegate the work to a codex exec minion, have a codex exec reviewer review it, adjudicate the findings, and report."

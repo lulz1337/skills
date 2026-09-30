@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "orchestrator-codex",
+  "description": "Run a task as an orchestrator over codex exec processes: a minion executes and a reviewer reviews, with the model pair chosen by a mode (quick, fast, standard, comprehensive).",
+  "version": "1.0.0",
+  "author": {
+    "name": "lulz1337",
+    "url": "https://github.com/lulz1337"
+  },
+  "homepage": "https://github.com/lulz1337/skills",
+  "repository": "https://github.com/lulz1337/skills",
+  "license": "MIT",
+  "keywords": ["orchestration", "codex", "delegation", "review", "openai"]
+}
