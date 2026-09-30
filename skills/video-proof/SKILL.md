@@ -1,9 +1,9 @@
 ---
 name: video-proof
-description: Record and deliver a Playwriter video that demonstrates a completed bug fix or small user story. Use only when the user explicitly asks for a video, recording, or video proof of completed work, including when the request appears at the start of the task. Do not use for ordinary testing or screenshot-only requests.
+description: Record and deliver an agent-browser video that demonstrates a completed bug fix or small user story. Use only when the user explicitly asks for a video, recording, or video proof of completed work, including when the request appears at the start of the task. Do not use for ordinary testing or screenshot-only requests.
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
 # Video Proof
@@ -12,45 +12,55 @@ Create a short, trustworthy video demonstration after the requested implementati
 and its relevant checks are complete. The video supplements tests; it does not
 replace them.
 
-## Load Playwriter and preflight early
+The browser is `agent-browser`: its own Chrome, driven one command at a time,
+recorded with `agent-browser record`. It needs no browser extension and no
+permission prompt, so the user does not have to do anything for the recording
+to start.
 
-Before the first Playwriter command:
+## Load agent-browser and preflight early
 
-1. Load the `playwriter` skill.
-2. Run `playwriter skill` and read its complete output. Do not truncate it.
-3. Use an extension-backed Playwriter session. Do not use direct CDP, headless, or
-   cloud mode: these modes do not support `recording.start` and `recording.stop`.
-4. Do not use `playwriter recorder start`. That command records human actions for
-   skill generation; it does not create the requested video.
+Before the first agent-browser command:
 
-Check the recording prerequisite early, even when the user requests the video at
+1. Run `agent-browser skills get core --full` and read its complete output. Do
+   not truncate it. It is version-matched to the installed CLI.
+2. Pick one session name for the whole proof, for example
+   `video-proof-<short-random-id>`, and pass `--session <name>` to every
+   command. A named session never touches the default session or another
+   agent's browser.
+3. Do not use `playwriter`, `terminal-browser`, or `--auto-connect` to drive the
+   recording. The first two are other browsers; `--auto-connect` drives the
+   user's own Chrome, which can show personal tabs and data.
+
+Check the recording prerequisites early, even when the user requests the video at
 the start of a larger task:
 
-- Create a dedicated Playwriter session.
-- Acquire a page owned by that session according to the Playwriter instructions
-  and navigate it to the target application as soon as the application can run.
-- Check `recording.isRecording({ page: state.page })`. If it reports an existing
-  recording on that page, do not disturb it; use a different page or report the
-  conflict.
-- Prove capture permission by starting a recording to a unique path inside a
-  private temporary directory, with `audio: false` and `maxDurationMs: 10000`.
-  Immediately call `recording.cancel({ page: state.page })`, confirm that
-  `recording.isRecording` is false, and delete only that probe directory. Merely
-  calling `recording.isRecording` is insufficient: it does not verify Chrome's
-  `activeTab` capture permission.
-- If Chrome is not running, start it using the platform-appropriate command from
-  the Playwriter documentation.
-- If Playwriter reports that the extension is disconnected or the tab is not
-  enabled, tell the user immediately. Ask only for the minimum action: open the
-  target tab in Chrome, click the Playwriter extension icon on that tab, approve
-  current-tab capture if Chrome asks, and tell the agent when it is ready.
-- Continue implementation and non-video verification while the user fixes the
-  connection when practical.
+- Run `agent-browser doctor` and read its Recording line. `record` pipes frames
+  into `ffmpeg`, so a missing `ffmpeg` is a blocker.
+- Choose the container from the encoders the installed ffmpeg has:
 
-Do not save or present the discarded preflight capture. If the final scenario
-uses a different tab, or navigation may have revoked the tab permission, repeat
-the capture probe on the final tab before creating any project output. Do not
-start the final recording during preflight.
+  ```bash
+  ffmpeg -hide_banner -encoders 2>/dev/null | grep -qw libx264 && ext=mp4
+  [ -n "${ext:-}" ] || { ffmpeg -hide_banner -encoders 2>/dev/null | grep -qw libvpx && ext=webm; }
+  ```
+
+  Prefer `.mp4` (H.264), because it plays everywhere, including QuickTime. Use
+  `.webm` (VP8) when ffmpeg has no libx264, as with Fedora's `ffmpeg-free`. If
+  neither encoder exists, stop and report it.
+- Prove that capture works: create a private temporary directory outside every
+  repository, open the target application in the session, run
+  `record start <tmpdir>/probe.<ext>`, wait about one second, run `record stop`,
+  and check the probe with `ffprobe` (see "Validate the artifact"). Then delete
+  only that probe directory. `doctor` alone does not prove that a frame reaches
+  the file.
+- If ffmpeg is missing, tell the user immediately and ask only for the minimum
+  action: install it with the machine's package manager (for example
+  `brew install ffmpeg`, `sudo dnf install ffmpeg-free`, or
+  `sudo apt install ffmpeg`), then say when it is done.
+- Continue implementation and non-video verification while the user fixes the
+  prerequisite, when that is practical.
+
+Do not save or present the probe. Do not start the final recording during
+preflight.
 
 ## Derive the proof scenario
 
@@ -119,7 +129,127 @@ evidence, do not record it as proof.
 Any source change after recording invalidates the video. Run the relevant checks
 again and record a new proof.
 
-## Prepare the output safely
+## Prepare the browser session
+
+Prepare authentication, test data, and the initial application state before
+recording:
+
+- Set a 16:9 viewport so the video has a predictable size:
+  `agent-browser --session <name> set viewport 1280 720`.
+- Log in with a project test account, typed into the real login form or through
+  `agent-browser auth login`. Never record a login that shows real credentials.
+- When the application accepts only the user's own SSO session, ask the user
+  first. With consent, export that state once to a file in the private temporary
+  directory with `agent-browser --auto-connect state save <tmpdir>/auth.json`,
+  load it with `state load`, and delete the file after the proof. Treat the file
+  as a secret: it holds session cookies. Never write it inside a repository.
+- Make sure the page shows no secrets, notifications, unrelated personal
+  information, production customer data, or other sensitive content.
+
+## Record the final demonstration
+
+Record into the private temporary directory, never directly into the target
+repository. A failed take then never touches the repository, and only a
+validated video is copied into `docs/videos/` (see "Deliver into the
+repository").
+
+```bash
+agent-browser --session <name> record start "<tmpdir>/take.<ext>" --cursor --contact-sheet
+```
+
+`--cursor` draws the pointer and click ripple into the video; Chrome's screencast
+does not show the native pointer. `--contact-sheet` writes a timestamped PNG of
+the distinct visual changes beside the video, which the validation step uses.
+Keep the default 30 fps unless the scenario is a drag or an animation (then 60).
+Keep audio out of the proof unless the user explicitly asks for it.
+
+Note the start time (`date +%s`) so each checkpoint can be given as elapsed
+seconds.
+
+After recording starts:
+
+- Leave the initial state visible for about two seconds (`wait 2000`).
+- Act through user-level commands on refs from a fresh `snapshot -i`: `click`,
+  `fill`, `type`, `press`, `select`, `check`, `hover`, `drag`, `upload`,
+  `scroll`. Re-snapshot after every navigation or large DOM change; refs go stale.
+- Follow observe -> act -> observe. After each action, check `get url`,
+  `diff snapshot`, and `errors --json` (plain `errors` prints nothing).
+- Assert each expected result from application state with `wait --text`,
+  `wait --url`, `is visible`, or `get text`. Do not infer success only from the
+  absence of an error.
+- Pause about 1.5 seconds on each decisive result (`wait 1500`) so a viewer can
+  read it.
+- Record each decisive checkpoint label and its elapsed time.
+
+Do not use `eval` to change the DOM or to click. Do not use `network route` to
+fake or block responses, `set offline`, or `cookies set` and `storage` writes
+during the take. Do not edit the application in memory for the recording.
+Project-supported test fixtures are acceptable only when the proof clearly
+represents the environment and criterion being demonstrated.
+
+Stop normally and keep the result:
+
+```bash
+agent-browser --session <name> record stop --json
+```
+
+The JSON reports the saved path, `frames`, and `capturedFrames`. A take whose
+`capturedFrames` is 0 or 1 recorded a still image, not the workflow.
+
+## Handle failures and interruptions
+
+After `record start` succeeds, ending the capture becomes mandatory on every exit
+path. agent-browser has no maximum recording duration, so nothing stops a
+forgotten recording for you.
+
+If an interaction, assertion, command, or connection fails:
+
+1. Treat the current take as failed.
+2. Run `agent-browser --session <name> record stop`.
+3. If that fails, run `agent-browser --session <name> close` and confirm with
+   `agent-browser session list` that the session is gone. The list can still
+   name it for a few seconds after `close`, so check again after about three
+   seconds. Do not probe the session with another command: any command in a
+   closed session launches a new browser.
+4. Delete the failed take from the temporary directory, or keep it there solely
+   as a clearly identified diagnostic artifact. Never link it as proof.
+
+Never present an incomplete, failed, or unverified take as proof.
+
+## Validate the artifact
+
+Before delivery, verify all of the following:
+
+- `record stop --json` reported the expected path, and `capturedFrames` shows
+  more than a single still frame.
+- The file exists and has nonzero size.
+- A media probe finds a video stream and a positive duration.
+- A full decode completes without media errors.
+- The contact sheet and frames extracted near the initial state, each decisive
+  checkpoint, and the final state show the intended application and result.
+- No inspected frame or contact-sheet tile contains secrets or unrelated personal
+  content.
+- The scenario still satisfies the proof matrix.
+
+```bash
+ffprobe -v error \
+  -show_entries stream=codec_type,codec_name,width,height:format=duration \
+  -of json "$video_path"
+
+ffmpeg -v error -i "$video_path" -f null -
+
+ffmpeg -v error -ss "<checkpoint seconds>" -i "$video_path" -frames:v 1 \
+  "<tmpdir>/frame-<label>.png"
+```
+
+Inspect the extracted frames and the contact sheet visually. `ffmpeg` is already
+required by `record`, so no other tool is needed. If a reliable validation cannot
+be completed, report the video as unverified rather than proof.
+
+If a decisive moment is missing, unreadable, incorrect, or too fast, discard only
+that take and record a new one.
+
+## Deliver into the repository
 
 The output repository is always the Git checkout of the project being fixed. It
 is not the repository that contains this skill unless that repository is itself
@@ -186,7 +316,7 @@ Stop if the check still does not identify an ignore rule.
 
 Only then create `docs/videos/`.
 
-## Name the video
+### Name the video
 
 Read the full local branch name with:
 
@@ -220,10 +350,10 @@ Normalize the short scenario description with the same rules, convert it to
 lowercase, and limit it to 48 characters. Use `proof-<12-character hash>` if it
 would otherwise be empty.
 
-Construct the filename as:
+Construct the filename with the extension chosen in preflight:
 
 ```text
-<branch-slug>__<description-slug>__<YYYYMMDD-HHMMSS>.mp4
+<branch-slug>__<description-slug>__<YYYYMMDD-HHMMSS>.<ext>
 ```
 
 For example:
@@ -232,132 +362,18 @@ For example:
 fix-T20-123__ulozeni-profilu__20260914-143022.mp4
 ```
 
-Never pass an existing path to `recording.start`.
-
 Reserve the candidate name atomically with a sibling
 `<candidate>.video-proof-lock` created with exclusive or noclobber semantics. If
 the video or reservation already exists, append `-02`, `-03`, and so on to the
 timestamp and try again. Do not delete a reservation created by another process.
-Remove only the reservation created by the current attempt, after recording has
-stopped.
+Copy the validated take from the temporary directory to the reserved name, then
+remove only the reservation created by the current attempt. Never overwrite an
+existing file.
 
-Keep temporary screenshots, extracted frames, logs, and media-probe output in a
-temporary directory outside the repository.
+Keep the contact sheet, extracted frames, logs, and media-probe output in the
+temporary directory. Only the video goes into `docs/videos/`.
 
-## Record the final demonstration
-
-Prepare authentication, test data, and the initial application state before
-recording. Use a dedicated tab. Ensure that the tab shows no secrets,
-notifications, unrelated personal information, production customer data, or
-other sensitive content.
-
-Use the native Playwriter API documented by `playwriter skill`:
-
-```js
-await recording.start({
-  page: state.page,
-  outputPath: "/absolute/path/to/docs/videos/the-proof.mp4",
-  frameRate: 30,
-  audio: false,
-  videoBitsPerSecond: 2500000,
-  aspectRatio: { width: 16, height: 9 },
-  maxDurationMs: 5 * 60 * 1000,
-})
-
-state.videoProof = {
-  active: true,
-  startedAt: Date.now(),
-  checkpoints: [],
-}
-```
-
-Use absolute output paths. Keep audio disabled unless the user explicitly asks
-for audio and the audio is safe to disclose.
-
-After recording starts:
-
-- Leave the initial state visible briefly.
-- Use Playwriter locator and mouse interactions so the ghost cursor shows the
-  workflow.
-- Follow Playwriter's observe -> act -> observe loop.
-- After each action, inspect the URL, a fresh snapshot, and
-  `getLatestLogs({ page: state.page, sinceLastCall: true })`.
-- Assert each expected result from application state. Do not infer success only
-  from the absence of an exception.
-- Pause briefly at the initial state and each decisive result so a viewer can
-  read them.
-- Record each decisive checkpoint label and its elapsed time from
-  `state.videoProof.startedAt`.
-
-Do not modify the DOM, invoke `element.click()` through `page.evaluate`, force
-interactions through blockers, intercept responses, or inject fake success data.
-Do not edit the application in memory for the recording. Project-supported test
-fixtures are acceptable only when the proof clearly represents the environment
-and criterion being demonstrated.
-
-Stop normally and retain the full result:
-
-```js
-state.recordingResult = await recording.stop({ page: state.page })
-state.videoProof.active = false
-```
-
-## Handle failures and interruptions
-
-After `recording.start` succeeds, ending the capture becomes mandatory on every
-exit path.
-
-If an interaction, assertion, command, or connection fails:
-
-1. Treat the current take as failed.
-2. In the next available Playwriter call, check
-   `recording.isRecording({ page: state.page })`.
-3. If it is active, call `recording.stop({ page: state.page })`.
-4. If a normal stop cannot complete, retry once after restoring the extension
-   connection, then call `recording.cancel({ page: state.page })` if available.
-5. Confirm that `recording.isRecording` is false.
-6. Delete only the failed video and reservation created by the current attempt,
-   or retain the video solely as a clearly identified diagnostic artifact.
-   Never link it as proof.
-
-The bounded `maxDurationMs` is a final safety net, not the normal stop mechanism.
-If capture state cannot be confirmed, report that the recording may remain active
-until that limit expires.
-
-Never present an incomplete, failed, auto-truncated, or unverified take as proof.
-
-## Validate the artifact
-
-Before delivery, verify all of the following:
-
-- `recording.stop` returned a path and a duration greater than zero.
-- The expected file exists and has nonzero size.
-- A media probe finds a video stream and a positive duration.
-- A full decode completes without media errors.
-- Frames extracted near the initial state, each decisive checkpoint, and the
-  final state contain the intended application and result.
-- No inspected frame contains secrets or unrelated personal content.
-- The scenario still satisfies the proof matrix.
-
-Prefer the installed `ffprobe` and `ffmpeg`:
-
-```bash
-ffprobe -v error \
-  -show_entries stream=codec_type,codec_name,width,height:format=duration \
-  -of json "$video_path"
-
-ffmpeg -v error -i "$video_path" -f null -
-```
-
-Extract checkpoint frames into a temporary directory and inspect them visually.
-If these tools are unavailable, use an existing trusted media probe and decoder.
-Do not install a new dependency merely to finish the proof. If no reliable
-validation method is available, report the video as unverified rather than proof.
-
-If a decisive moment is missing, unreadable, incorrect, or too fast, discard only
-that attempt and record a new take.
-
-## Recheck Git safety
+### Recheck Git safety
 
 For every video or task-created artifact, verify the ignore rule again:
 
@@ -379,8 +395,12 @@ Never alter pre-existing tracked or staged files to make this check pass.
 
 Never stage, commit, force-add, or place videos or helper artifacts in Git LFS.
 
-Stop only application processes created for this proof, unless the project's
-normal workflow explicitly requires them to remain running.
+## Clean up
+
+- Close the proof session: `agent-browser --session <name> close`.
+- Delete the private temporary directory, including any exported auth state.
+- Stop only application processes created for this proof, unless the project's
+  normal workflow explicitly requires them to remain running.
 
 ## Deliver the proof
 
@@ -402,6 +422,6 @@ filesystem path is accessible to the user. If no private transfer mechanism is
 available, state that delivery is incomplete and give the minimum concrete action
 needed to retrieve the file.
 
-If extension capture or artifact delivery remains unavailable, report the exact
-blocker, the work and non-video checks that succeeded, and the minimum user action
+If recording or artifact delivery remains unavailable, report the exact blocker,
+the work and non-video checks that succeeded, and the minimum user action
 required. Do not claim that the video proof exists.

@@ -24,10 +24,10 @@ installation steps, usage, and everything else it needs.
   changes execution, adapts to a named target model using its official
   documentation, and requires an independent reviewer with no inherited
   conversation history.
-- [**video-proof**](skills/video-proof/) — Record a short Playwriter video
-  that proves a finished fix or story works. Ties the recording to the current
-  worktree and build, validates the file frame by frame, and keeps it out of
-  Git.
+- [**video-proof**](skills/video-proof/) — Record a short agent-browser
+  video that proves a finished fix or story works. Ties the recording to the
+  current worktree and build, validates the file frame by frame, and keeps it
+  out of Git.
 - [**orchestrator-claude**](skills/orchestrator-claude/) — Run a task as an
   orchestrator over Claude subagents. A minion makes the change and runs the
   checks, a read-only reviewer reviews the diff, and a mode picks the model
