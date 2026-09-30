@@ -28,6 +28,13 @@ installation steps, usage, and everything else it needs.
   that proves a finished fix or story works. Ties the recording to the current
   worktree and build, validates the file frame by frame, and keeps it out of
   Git.
+- [**orchestrator-claude**](skills/orchestrator-claude/) — Run a task as an
+  orchestrator over Claude subagents. A minion makes the change and runs the
+  checks, a read-only reviewer reviews the diff, and a mode picks the model
+  pair. The plugin ships the eight subagents.
+- [**orchestrator-codex**](skills/orchestrator-codex/) — The same workflow
+  over `codex exec` processes with GPT-6 models. Waits without polling,
+  follows up with cold runs, and reports token usage per role.
 
 ## License
 
