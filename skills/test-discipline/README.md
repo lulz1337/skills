@@ -34,21 +34,23 @@ Or copy this folder into the skill directory of your agent harness.
 
 ## Usage
 
-The skill triggers whenever tests are written, edited, moved, fixed,
-reviewed, or discussed. You can also invoke it directly:
+The skill triggers only when a task writes, edits, or deletes a file whose name
+contains `.spec` or `.test`. Reading tests, discussing test strategy, and
+running a test suite do not trigger it. You can also invoke it directly:
 
 ```
-Review the test hygiene in src/checkout/
+Create `checkout.spec.ts` for the checkout behavior
 ```
 
 ```
-Napiš testy pro calculateDiscount
+Edit `calculateDiscount.test.ts` to cover the maximum discount
 ```
 
-For guaranteed activation, wire your harness to remind the agent on test
-context — for Claude Code, a `UserPromptSubmit` + `PostToolUse` hook that
-injects a one-line reminder when the prompt mentions tests or a test file is
-touched.
+For guaranteed activation, wire your harness to remind the agent after a
+matching file mutation. A reference Claude Code hook lives at
+[lulz1337/.dotfiles/claude/test-discipline-hook.py](https://github.com/lulz1337/.dotfiles/blob/main/claude/test-discipline-hook.py):
+it listens to `PostToolUse` for writes and edits, plus shell commands that
+delete `.spec` or `.test` files.
 
 ## Structure
 

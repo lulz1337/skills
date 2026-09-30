@@ -1,18 +1,23 @@
 ---
 name: test-discipline
 description: >-
-  Test hygiene and test-pyramid discipline for every test in any language,
-  framework, or runner. Load this skill EVERY time tests are involved in any
-  way: writing, editing, moving, reviewing, fixing, deleting, or generating
-  tests; questions about test strategy, hygiene, coverage, flaky tests, or
-  slow suites; "write tests", "fix the tests", "napiš testy", "oprav testy",
-  "review testů"; and any touch of a test file (*.test.*, *.spec.*, *_test.*,
-  test_*, *Test.*). Do not skip it because the change looks small — it always
-  ends with a severity-graded review (BLOCKER/HIGH/MEDIUM/LOW) that marks
-  each test OK / FIX / DELETE and names the tests that are MISSING.
+  Test hygiene and test-pyramid discipline when writing, editing, or deleting
+  files whose names contain .spec or .test. Do not load this skill for reading
+  or reviewing tests, discussing test strategy, running a test suite, changing
+  source code without changing a matching test file, or files that use another
+  naming convention. Every activation ends with a severity-graded review that
+  marks changed tests OK / FIX / DELETE and names tests that are MISSING.
 ---
 
 # Test Discipline
+
+## Scope
+
+Load this skill only when the task creates, changes, or deletes a file whose
+name contains `.spec` or `.test`, such as `checkout.spec.ts` or
+`pricing.test.tsx`. Do not activate it for read-only test work, test strategy
+questions, test execution, or test files named only with conventions such as
+`test_checkout.py`, `checkout_test.go`, or `CheckoutTest.java`.
 
 Agents write too many tests at the wrong layer, and the failure mode is always
 the same: the agent writes tests **for itself** — to prove its own
@@ -34,10 +39,9 @@ the test has negative value: pure maintenance cost. Delete it.
 
 ## Non-negotiable outcome: the review
 
-Every activation of this skill ends with a **Test Review** — even when the
-task was "write tests" (review your own new tests before reporting done), and
-even when the user only asked a hygiene question (review what exists). Never
-end a test-touching task with just "done, tests pass".
+Every activation of this skill ends with a **Test Review** of the `.spec` and
+`.test` files created, changed, or deleted during the task. Never end such a
+task with only "done, tests pass".
 
 The workflow:
 

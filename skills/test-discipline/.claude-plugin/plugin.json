@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "test-discipline",
-  "description": "Stack-agnostic test hygiene: severity-graded reviews that mark tests OK / FIX / DELETE / MISSING.",
-  "version": "1.0.0",
+  "description": "Test hygiene for changed .spec and .test files, with severity-graded OK / FIX / DELETE / MISSING reviews.",
+  "version": "1.1.0",
   "author": {
     "name": "lulz1337",
     "url": "https://github.com/lulz1337"

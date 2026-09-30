@@ -24,7 +24,7 @@
     {
       "name": "test-discipline",
       "source": "./skills/test-discipline",
-      "description": "Stack-agnostic test hygiene: severity-graded reviews that mark tests OK / FIX / DELETE / MISSING.",
+      "description": "Test hygiene for changed .spec and .test files, with severity-graded OK / FIX / DELETE / MISSING reviews.",
       "license": "MIT",
       "keywords": ["testing", "test-pyramid", "hygiene", "review", "quality", "e2e"]
     },
