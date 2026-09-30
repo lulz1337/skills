@@ -17,7 +17,7 @@ installation steps, usage, and everything else it needs.
   FIX / DELETE and names the MISSING ones; ships a dependency-free checker
   script.
 - [**diagram-design**](skills/diagram-design/) — Create branded diagrams as
-  standalone HTML/SVG/PNG in 27 visual types, from architecture and
+  standalone HTML/SVG/PNG in 39 visual types, from architecture and
   flowcharts to Gantt and ER models. Onboards brand tokens from a website or
   design system and redraws draw.io and Mermaid sources.
 - [**write-prompt**](skills/write-prompt/) — Write, improve, or translate a

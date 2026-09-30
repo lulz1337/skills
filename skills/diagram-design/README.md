@@ -5,12 +5,15 @@ inline SVG and CSS, following an opinionated editorial design system. It can
 also export SVG/PNG and redraw existing `.drawio`, `.drawio.png`,
 `.drawio.svg`, or Mermaid `.mmd` sources at a chosen size and detail.
 
-It covers 27 visual types: architecture, IT current-state, flowchart,
+It covers 39 visual types: architecture, IT current-state, flowchart,
 sequence, state machine, ER/data model, timeline, swimlane, quadrant,
-radar/spider, loop/flywheel, nested, tree, org chart, layer stack, Venn,
-pyramid/funnel, bar, line, Gantt, scatter, high-level, process, medallion,
-data flow, DP integration, and DP security matrix. On top of the types it
-adds semantic patterns, callouts, accessible motion, and an optional
+radar/spider, polar chart, loop/flywheel, nested, tree, org chart, layer
+stack, Venn, pyramid/funnel, treemap, bar, line (with slopegraph, ridgeline,
+and bump variants), Gantt, scatter (with bubble and beeswarm variants),
+high-level, process, medallion, data flow, DP integration, DP security
+matrix, Sankey, fishbone, Wardley map, kanban, user journey, deployment,
+dependency graph, UML class, story map, and database schema. On top of the
+types it adds semantic patterns, callouts, accessible motion, and an optional
 sketchy/hand-drawn style.
 
 ## Installation
