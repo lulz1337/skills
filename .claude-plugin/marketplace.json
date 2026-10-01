@@ -45,16 +45,23 @@
     {
       "name": "orchestrator-claude",
       "source": "./skills/orchestrator-claude",
-      "description": "Orchestrate a task over Claude subagents: a minion executes, a reviewer reviews, and the mode (quick, fast, standard, comprehensive) picks the model pair. Ships the eight subagents.",
+      "description": "Orchestrate a task over Claude subagents: a minion executes, from fast up a reviewer reviews, and the mode (quick, fast, standard, comprehensive) picks the models. Ships the seven subagents.",
       "license": "MIT",
       "keywords": ["orchestration", "subagents", "delegation", "review", "claude"]
     },
     {
       "name": "orchestrator-codex",
       "source": "./skills/orchestrator-codex",
-      "description": "Orchestrate a task over codex exec processes: a minion executes, a read-only reviewer reviews, and the mode picks the GPT-6 model pair. Reports token usage per role.",
+      "description": "Orchestrate a task over codex exec processes: a minion executes, from fast up a read-only reviewer reviews, and the mode picks the GPT-6 models. Reports token usage per role.",
       "license": "MIT",
       "keywords": ["orchestration", "codex", "delegation", "review", "openai"]
+    },
+    {
+      "name": "orchestrator-hybrid",
+      "source": "./skills/orchestrator-hybrid",
+      "description": "Draft: orchestrate a task over a Codex minion and, from fast up, a Claude reviewer, with the pair picked by mode. Needs orchestrator-codex and orchestrator-claude. Ships the three reviewer subagents.",
+      "license": "MIT",
+      "keywords": ["orchestration", "codex", "subagents", "delegation", "review", "claude", "openai"]
     }
   ]
 }

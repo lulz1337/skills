@@ -13,8 +13,8 @@ It runs only when you invoke it. The host can be Claude Code or Codex. The
 
 | Mode | Minion | Reviewer | Use for |
 | --- | --- | --- | --- |
-| `quick` | `gpt-6-luna`, medium | `gpt-6-luna`, medium | a settled, small change with a light review |
-| `fast` | `gpt-6-luna`, medium | `gpt-6-sol`, high | a settled change, such as a mechanical refactor, checked harder |
+| `quick` | `gpt-6-luna`, medium | none | a settled, small change, no review |
+| `fast` | `gpt-6-luna`, medium | `gpt-6-sol`, high | a settled change, checked by a reviewer |
 | `standard` | `gpt-6-sol`, medium | `gpt-6-sol`, high | the default: implementation needs judgment |
 | `comprehensive` | `gpt-6-sol`, medium | `gpt-6-astra`, medium | work where a missed defect is expensive |
 
@@ -47,21 +47,30 @@ the skill runs `codex exec` directly.
 ```
 /orchestrator-codex standard add a 30% cap to apply_discount with a unit test
 $orchestrator-codex quick bump the base image in Dockerfile to node:22-slim
+/orchestrator-codex fast --visible rename calc_total to order_total
 ```
 
 The first word selects the mode. Any other first word means `standard`, and
-the whole argument is the task.
+the whole argument is the task. A mode with no task sets the mode for the rest
+of the conversation and waits for the task. The mode and `--visible` hold
+until the next `/orchestrator-codex` call.
+
+Inside the Herdr terminal multiplexer, `--visible` runs every agent in its
+own pane. The default is the host path, even inside Herdr. The Herdr path
+also reads `references/herdr.md` of the `orchestrator-claude` skill, so
+install that skill too when you use `--visible`.
 
 ## What it does
 
 1. **Records a baseline.** It runs `git status --short` before the first run.
-2. **Starts cold, self-contained runs.** Each `codex exec` gets the role
-   prompt plus a full brief on stdin, with the mode's model, effort, and
-   sandbox. The minion has full access. The reviewer is read-only.
+2. **Starts cold, self-contained runs, up to nine in parallel.** Each
+   `codex exec` gets the role prompt plus a full brief on stdin, with the
+   mode's model, effort, and sandbox. The minion has full access. The reviewer is read-only.
 3. **Waits without polling.** It uses one blocking wait, because each poll
    resends the whole context.
-4. **Reviews every change and rules on the findings.** An accepted finding
-   becomes a new cold follow-up run, never a resumed session.
+4. **Reviews every change from fast up and rules on the findings.** An
+   accepted finding becomes a new cold follow-up run, never a resumed
+   session.
 5. **Reports usage.** Input, cached input, and output tokens per role, read
    from the `turn.completed` events.
 
@@ -74,6 +83,7 @@ the whole argument is the task.
 - `references/examples.md`: complete briefs, commands, and a final report.
 - `references/pitfalls.md`: failures from measured runs, and the rule that
   prevents each one.
+- `references/herdr.md`: the Herdr path for `--visible`.
 
 ## License
 

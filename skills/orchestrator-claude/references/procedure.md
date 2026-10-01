@@ -45,7 +45,7 @@ skill path and mode in `CONSTRAINTS`.
 
 ## Parallel agents
 
-Run up to five agents at once when the task splits into independent pieces. Do
+Run up to nine agents at once when the task splits into independent pieces. Do
 not serialize work only because it is safer or easier to track. Before the
 first parallel spawn:
 
@@ -89,11 +89,18 @@ to need one, report the need as an open question and stop there.
 
 ## Coordination
 
-Start agents in the background when the host supports it. Use the host's agent
-list to observe state, its message mechanism to add context to a running minion,
-and its stop mechanism to abort a bad run. Tool names vary by host; describe the
-actual coordination actions in the final report when they materially affected
-the outcome.
+On the host path, spawn each agent with the `Agent` tool and run it in the
+background. The host notifies you when an agent finishes, so do not poll. Use
+the host's message mechanism to add context to a running minion, and its stop
+mechanism to abort a bad run. Describe the actual coordination actions in the
+final report when they materially affected the outcome.
+
+When `--visible` is set and the gate passes, take the Herdr path that
+`herdr.md` describes. It
+changes where agents run, how a brief reaches them, how you wait, how you stop
+a run and how a follow-up reaches the same agent. It does not change the roles,
+the brief shape, who runs checks, the parallel rules, adjudication or the
+report.
 
 Compress reports at boundaries: retain relevant files, decisions, evidence,
 checks actually run and their results, and unresolved matters, not tool noise.
@@ -102,19 +109,24 @@ missing.
 
 ## Verify, review, and complete
 
+The `quick` mode has no reviewer. After the minion's one verification phase,
+capture the stable diff, read the minion's report, and report. Skip the review
+brief and every step below that needs a reviewer.
+
 For an accepted finding, brief the fixing minion with the original requirement
 and acceptance criteria, the exact finding and affected location, relevant
 existing evidence, and the new direction. Do not replay the full historical
-brief or unrelated findings. Rerun checks whose validity the fix affects;
-preserve mandatory required checks and recheck when uncertain.
+brief or unrelated findings.
 
 After all writers finish, the minion runs one verification phase with the
 checks its `VERIFY` names, as "Who runs checks" defines. After a fix it reruns
 only what failed and what the fix can affect. Wait until writers have stopped,
-then capture a stable diff and current status without running any check. Brief the reviewer with the original request, repository
-decisions, baseline, exact stable changes, verification evidence, and anything
-unverified. The report guides navigation, but is not proof: the reviewer independently validates
-correctness-critical claims against actual sources and the stable diff.
+then capture a stable diff and current status without running any check.
+Brief the reviewer with the original request, repository decisions, baseline,
+exact stable changes, verification evidence, and anything unverified. The
+report guides navigation, but is not proof: the reviewer independently
+validates correctness-critical claims against actual sources and the stable
+diff.
 
 Adjudicate every review finding against the request and evidence:
 
@@ -131,8 +143,6 @@ infrastructure, or a reproducible failure that prevents safe progress. Report
 its evidence and the smallest next action; do not add arbitrary approval gates.
 
 Report what changed, the review outcome and adjudication, verification that
-actually ran, and remaining uncertainty. When evaluating context economy later,
-compare aggregate input tokens, cached input tokens (a subset of input), and
-output tokens alongside verification and review outcomes on comparable tasks.
-Claim no savings without that evidence; do not add a collector or benchmark task
-now.
+actually ran, and remaining uncertainty. Claim a token saving only with
+measured input, cached input (a subset of input) and output tokens, next to
+verification and review outcomes, on comparable tasks.

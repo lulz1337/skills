@@ -31,11 +31,16 @@ installation steps, usage, and everything else it needs.
   out of Git.
 - [**orchestrator-claude**](skills/orchestrator-claude/) — Run a task as an
   orchestrator over Claude subagents. A minion makes the change and runs the
-  checks, a read-only reviewer reviews the diff, and a mode picks the model
-  pair. The plugin ships the eight subagents.
+  checks, a read-only reviewer reviews the diff from `fast` up, and a mode
+  picks the models. `--visible` runs the agents in Herdr panes. The plugin
+  ships the seven subagents.
 - [**orchestrator-codex**](skills/orchestrator-codex/) — The same workflow
   over `codex exec` processes with GPT-6 models. Waits without polling,
   follows up with cold runs, and reports token usage per role.
+- [**orchestrator-hybrid**](skills/orchestrator-hybrid/) — A draft that
+  mixes the two: a Codex minion executes and a Claude reviewer from another
+  model family reviews. Needs the other two orchestrator skills. The plugin
+  ships the three reviewer subagents.
 
 ## License
 

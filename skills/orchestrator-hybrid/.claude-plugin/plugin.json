@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "orchestrator-hybrid",
+  "description": "Run a task as an orchestrator over a mixed pair: a Codex minion executes and, from fast up, a Claude reviewer reviews, with the pair chosen by a mode (quick, fast, standard, comprehensive).",
+  "version": "1.0.0",
+  "author": {
+    "name": "lulz1337",
+    "url": "https://github.com/lulz1337"
+  },
+  "homepage": "https://github.com/lulz1337/skills",
+  "repository": "https://github.com/lulz1337/skills",
+  "license": "MIT",
+  "keywords": ["orchestration", "codex", "subagents", "delegation", "review", "claude", "openai"]
+}

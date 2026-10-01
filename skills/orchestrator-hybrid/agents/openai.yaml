@@ -1,0 +1,5 @@
+interface:
+  display_name: "Orchestrator (Hybrid)"
+  short_description: "Orchestrate a Codex minion and a Claude reviewer by mode"
+policy:
+  allow_implicit_invocation: false

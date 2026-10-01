@@ -8,7 +8,7 @@ a small fixture repository: `orders/pricing.py` with `unittest` tests.
 
 | Request | Mode | Why |
 | --- | --- | --- |
-| "Change the host port in docker-compose.yml from 8000 to 8080." | `quick` | one settled line; luna on both sides is enough |
+| "Change the host port in docker-compose.yml from 8000 to 8080." | `quick` | one settled line; luna executes and no reviewer runs |
 | "Rename `calc_total` to `order_total` across the package and its tests." | `fast` | mechanical for luna; sol at `high` catches the missed call site |
 | "Add a 30 percent discount cap to `apply_discount`, with tests." | `standard` | sol writes it, sol at `high` reviews it |
 | "Change rounding in `order_total` to `ROUND_HALF_UP`; invoices depend on it." | `comprehensive` | a missed defect reaches money; astra reviews |
@@ -23,6 +23,12 @@ and stop:
 
 ```text
 Mode fast: gpt-6-luna (medium) executes, gpt-6-sol (high) reviews. Send the task.
+```
+
+In `quick` there is no reviewer:
+
+```text
+Mode quick: gpt-6-luna (medium) executes, no review. Send the task.
 ```
 
 ## Reading the profile
@@ -170,4 +176,78 @@ Review (gpt-6-sol high): 2 findings.
 
 Usage: minion 312k in (298k cached) / 4.1k out; follow-up 141k / 1.2k; reviewer 188k / 2.3k.
 Caveman measured every run. Nothing committed. Mode: standard.
+```
+
+## The same task on the Herdr path
+
+`--visible` is set, the gate passes and the mode is `standard`. Shell variables do not persist
+between Bash calls, so every step prints what the next step needs, and the
+next step uses the literal value.
+
+1. Read the profile. `sed -n '2,5p' "$skill_dir/roles/profiles/standard.md"`
+   gives `gpt-6-sol` at `medium` for the minion and `gpt-6-sol` at `high` for
+   the reviewer.
+2. Make two panes and one run directory per agent. The first layout read
+   shows the calling pane at width 200, which is at least 160 columns, so the
+   first split is `right` and prints `w1:p3`. The second read shows `w1:p3` at
+   width 100, so the second split is `down` and prints `w1:p4`. The run
+   directories print `/tmp/orchestrator.Zq8n2c` for the minion and
+   `/tmp/orchestrator.Rv82pd` for the reviewer:
+
+   ```bash
+   herdr pane layout --current | jq -c '.result.layout.panes[] | {pane_id, rect}'
+   herdr pane split --current --direction right --cwd "$PWD" --no-focus | jq -r '.result.pane.pane_id'
+   herdr pane layout --pane w1:p3 | jq -c '.result.layout.panes[] | {pane_id, rect}'
+   herdr pane split w1:p3 --direction down --cwd "$PWD" --no-focus | jq -r '.result.pane.pane_id'
+   mktemp -d "${TMPDIR:-/tmp}/orchestrator.XXXXXX"
+   mktemp -d "${TMPDIR:-/tmp}/orchestrator.XXXXXX"
+   ```
+
+3. Write `/tmp/orchestrator.Zq8n2c/prompt.md` with the file tool: the minion
+   body and the brief from "One minion run, start to finish".
+4. Start both agents with the profile's values:
+
+   ```bash
+   herdr agent start minion-1 --kind codex --pane w1:p3 -- \
+     --model gpt-6-sol -c model_reasoning_effort=medium --sandbox danger-full-access -a never
+   herdr agent start reviewer --kind codex --pane w1:p4 -- \
+     --model gpt-6-sol -c model_reasoning_effort=high --sandbox read-only -a never
+   ```
+
+5. Prompt the minion in a background Bash call with a 1900000 ms tool timeout:
+
+   ```bash
+   herdr agent prompt minion-1 "Read /tmp/orchestrator.Zq8n2c/prompt.md and carry it out. Write your final report to /tmp/orchestrator.Zq8n2c/final.md and reply only with that path." \
+     --wait --timeout 1800000 \
+     > /tmp/orchestrator.Zq8n2c/wait.json 2> /tmp/orchestrator.Zq8n2c/wait.err
+   echo "minion-1 exit=$?"
+   ```
+
+6. When the call wakes the conversation, read `wait.json` and `wait.err`. Exit
+   0 with an `idle` or `done` state means the turn settled. Then read
+   `final.md` and run `git status --short && git diff`.
+7. Write `/tmp/orchestrator.Rv82pd/prompt.md` with the file tool: the
+   reviewer body and the reviewer brief from "The reviewer run", with
+   `OUTPUT` asking for the report in the pane and no file. Prompt the reviewer
+   the same way, with `--timeout 900000` and a 1000000 ms tool timeout, into
+   that directory's `wait.json` and `wait.err`, then read the report:
+
+   ```bash
+   herdr agent read reviewer --source recent-unwrapped --lines 300
+   ```
+
+8. The cap finding is accepted. Write `follow-up.md` with the fix brief from
+   "A follow-up after an accepted finding", asking for the report in
+   `final-2.md`. Prompt `minion-1` to read it, with the same background wait
+   into `wait-2.json` and `wait-2.err`. The minion still knows the brief and
+   the files. The follow-up is not cheaper in tokens, because Codex resends
+   the transcript.
+9. Finish: `herdr pane close w1:p3`, `herdr pane close w1:p4`, and remove
+   `/tmp/orchestrator.Zq8n2c` and `/tmp/orchestrator.Rv82pd`.
+
+The report ends with:
+
+```text
+Usage: unmeasured (herdr-hosted) for the minion, its follow-up and the reviewer.
+Nothing committed. Mode: standard.
 ```

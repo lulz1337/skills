@@ -18,11 +18,22 @@ is on `PATH`.
 | Transcript reading | The whole `events.jsonl` was loaded into the orchestrator's context to "summarize" it. | Read `final.md`; inspect selected events with `jq`; read the full log only for diagnosis. |
 | Ignoring usage | The report gave no token figures, so the mode's cost could not be compared. | Record `turn.completed` usage per run and report input, cached input and output tokens per role. |
 
+## Herdr pitfalls
+
+No eval measures the Herdr path yet: the suites run without Herdr and detect
+only `codex exec`. These entries are therefore not observed failures. Each one
+describes what the mechanism would do, and the rule that prevents it. The
+Herdr rows of the Claude list apply too.
+
+| Pitfall | What would happen | Rule |
+| --- | --- | --- |
+| An unmeasured Herdr run reported as measured | Herdr starts the bare `codex`, outside `caveman run`, so no `events.jsonl` exists. Any usage figure in the report would have no source. | Report every Herdr-hosted run as unmeasured, with the reason "herdr-hosted". Use the host path when the task is a cost comparison or an eval. |
+| The read-only reviewer asked for a file | The read-only sandbox blocks the write. With `-a never` the failure goes back to the model, so the report file never appears and the orchestrator waits for nothing. | A reviewer writes no file. Read its report with `herdr agent read reviewer --source recent-unwrapped --lines 300`. |
+| A foreground wait killed by the Bash timeout | A foreground Bash call stops at 120000 ms by default and 600000 ms at most. A `--wait` with a longer Herdr timeout would be cut off while the agent still works, and its result would be lost. | Run `herdr agent prompt --wait` as a background Bash call with a tool timeout above the Herdr timeout, `> wait.json 2> wait.err`, and `wait "$pid"` per job. |
+
 ## Cost notes
 
-- A cold `codex exec` starts near 21k tokens of system prompt and `AGENTS.md`;
-  every tool round-trip resends the whole transcript, so input tokens grow
-  with the square of the tool calls. A brief with an exact `SCOPE` and `VERIFY`
-  is the first lever; `--config tool_output_token_limit=<n>` the second.
+- Why input tokens grow with the square of the tool calls, and the three
+  levers in order, are in `procedure.md`, "Measure every run".
 - Codex rows spend ChatGPT subscription quota that the harness cannot meter;
   measure one condition at a time before adding trials.

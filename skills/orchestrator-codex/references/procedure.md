@@ -36,7 +36,7 @@ they are optional, not the default.
 
 ## Parallel processes
 
-Run up to five processes at once when the task splits into independent pieces.
+Run up to nine processes at once when the task splits into independent pieces.
 Do not serialize work only because it is safer or easier to track. Before the
 first parallel start:
 
@@ -56,7 +56,7 @@ separate subsystems. Serialize a step that needs another step's result, and
 writes that touch a shared file. Do not start a process only to fill a slot.
 
 Give each parallel process its own run directory. Wait for all of them with one
-blocking wait, never with a polling loop.
+blocking wait, as "Start and track a process" describes.
 
 ## Who runs checks
 
@@ -82,6 +82,13 @@ budget on the wrong thing and can act against live services. When a task seems
 to need one, report the need as an open question and stop there.
 
 ## Start and track a process
+
+This section is the host path: `codex exec`, the default even inside Herdr.
+When `--visible` is set and the gate passes, take the Herdr path instead.
+There the Codex agents run interactively in panes, and `herdr.md` in this
+folder and `references/herdr.md` of the `orchestrator-claude` skill hold the
+rules for starting, waiting, reading and measuring. The other sections of this file apply to both
+paths, except that a Herdr-hosted run is unmeasured.
 
 Use an explicit working directory. Create a unique temporary run directory and
 write the combined prompt to `prompt.md` with the host's file-writing tool; do
@@ -115,11 +122,9 @@ a background process there outlives the turn, its result is never read, and
 "waiting for it to complete" becomes the final report. In that case run the
 command in the foreground with a timeout and wait for it. Never end a turn
 while a delegated process is still running, and never wait by polling: a loop
-of `sleep 30; check` costs one full-context request per check. Measured on
-2026-09-23 in a Codex-hosted orchestration, two such loops re-sent 90k and
-200k tokens of context every 40 seconds for over an hour, more than the
-minions they were waiting for. One blocking wait with a generous timeout is
-the only acceptable form of waiting.
+of `sleep 30; check` costs one full-context request per check (pitfalls.md,
+"Polling for a process", records the measured cost). One blocking wait with a
+generous timeout is the only acceptable form of waiting.
 `caveman run --off --` starts the local proxy when needed and meters the run
 byte-safe: on Codex the compression saved nothing in every measured run, and
 the output shrink once cut the orchestrator's own tool output, so metering
@@ -174,6 +179,11 @@ the minion.
 
 ## Follow up or stop a process
 
+On the Herdr path, a follow-up goes to the living agent: write `follow-up.md`
+to its run directory and prompt the agent to read it, as `herdr.md` shows.
+Stop a Herdr-hosted agent with `herdr agent send-keys <name> ctrl+c`. The rest
+of this section is the host path.
+
 Codex processes cannot receive mid-flight messages. Stop a bad background
 process with the host's process-control tool.
 
@@ -205,6 +215,10 @@ workflow.
 
 ## Verify, review, and complete
 
+The `quick` mode has no reviewer. After the minion's one verification phase,
+capture the stable diff, read the minion's report, and report. Skip the review
+brief and every step below that needs a reviewer.
+
 After all writers finish, the minion runs one verification phase with the
 checks its `VERIFY` names, as "Who runs checks" defines. After a fix it reruns
 only what failed and what the fix can affect. Wait until writers have stopped,
@@ -232,7 +246,6 @@ its evidence and the smallest next action; do not add arbitrary approval gates.
 Report what changed, the review outcome and adjudication, verification that
 actually ran, remaining uncertainty, and, when Caveman is in use, whether it
 measured every run.
-When evaluating context economy later, compare aggregate input tokens, cached
-input tokens (a subset of input), and output tokens alongside verification and
-review outcomes on comparable tasks. Claim no savings without that evidence;
-do not add a collector or benchmark task now.
+Claim a token saving only with measured input, cached input (a subset of
+input) and output tokens, next to verification and review outcomes, on
+comparable tasks.

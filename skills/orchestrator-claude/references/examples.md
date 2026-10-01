@@ -8,14 +8,14 @@ fixture repository: `orders/pricing.py` with `unittest` tests.
 
 | Request | Mode | Why |
 | --- | --- | --- |
-| "Change the host port in docker-compose.yml from 8000 to 8080." | `quick` | one settled line, review can be shallow |
+| "Change the host port in docker-compose.yml from 8000 to 8080." | `quick` | one settled line; no reviewer runs |
 | "Rename `calc_total` to `order_total` across the package and its tests." | `fast` | mechanical, but a missed call site breaks the build, so the reviewer works harder than the minion |
 | "Add a 30 percent discount cap to `apply_discount`, with tests." | `standard` | the implementation needs judgment about edge cases and terms |
 | "Change rounding in `order_total` to `ROUND_HALF_UP`; invoices depend on it." | `comprehensive` | a missed defect reaches money; the strongest reviewer at `xhigh` |
 
 When in doubt, `standard`. Escalate to `comprehensive` for money, auth,
 migrations and anything the user calls risky. Drop to `quick` only when the
-diff is small and the user would accept it after a glance.
+diff is small and the user would accept it with no review.
 
 ## Answering a bare mode
 
@@ -24,6 +24,12 @@ line and stop:
 
 ```text
 Mode fast: minion-fast executes, reviewer-fast reviews. Send the task.
+```
+
+In `quick` there is no reviewer:
+
+```text
+Mode quick: minion-quick executes, no review. Send the task.
 ```
 
 Do not explore the repository, do not spawn, do not list questions.
@@ -118,6 +124,80 @@ SCOPE: orders/pricing.py, tests/test_pricing.py. Excluded: orders/tax.py and
 ```
 
 One reviewer reviews the combined stable diff after both minions finish.
+
+## The Herdr path
+
+The same discount cap task in `standard` mode, with `--visible` set and the
+gate passing. Shell variables do not persist between Bash calls, so every ID
+and path below is printed once and then written literally.
+
+1. Baseline: `git status --short` is clean.
+2. Layout: `herdr pane layout --current` shows the calling pane `w1:p1` at
+   width 200 and height 50. That is at least 160 columns, so it splits `right`:
+
+   ```bash
+   herdr pane split --current --direction right --cwd "$PWD" --no-focus | jq -r '.result.pane.pane_id'
+   # w1:p4
+   mktemp -d "${TMPDIR:-/tmp}/orchestrator.XXXXXX"
+   # /tmp/orchestrator.k3Qx1a
+   ```
+
+3. The Write tool creates `/tmp/orchestrator.k3Qx1a/prompt.md`: the role body
+   of `minion-standard.md`, a blank line, then the minion brief above.
+4. Start the minion with the values of the mode's agent file:
+
+   ```bash
+   f="$skill_dir/agents/minion-standard.md"  # $skill_dir: this skill's directory
+   model="$(sed -n 's/^model: //p' "$f")"; effort="$(sed -n 's/^effort: //p' "$f")"
+   tools="$(sed -n 's/^tools: //p' "$f" | tr -d ' ')"
+   echo "model=$model effort=$effort tools=$tools"
+   herdr agent start minion-1 --kind claude --pane w1:p4 -- \
+     --model "$model" --effort "$effort" --permission-mode bypassPermissions --tools "$tools"
+   ```
+
+5. Prompt and wait in one Bash call with `run_in_background: true` and
+   `timeout: 1900000`:
+
+   ```bash
+   herdr agent prompt minion-1 \
+     "Read /tmp/orchestrator.k3Qx1a/prompt.md and carry it out. Write your final report to /tmp/orchestrator.k3Qx1a/final.md and reply only with that path." \
+     --wait --timeout 1800000 \
+     > /tmp/orchestrator.k3Qx1a/wait.json 2> /tmp/orchestrator.k3Qx1a/wait.err
+   echo "minion-1 exit=$?"
+   ```
+
+6. The host wakes the conversation with `minion-1 exit=0`. `wait.err` is
+   empty and `wait.json` shows `idle`. Read `final.md`, then record
+   `git status --short` and `git diff`.
+7. Reviewer: the largest pane the orchestrator created is `w1:p4`, now width
+   100 and height 50. That is under 160 columns, so it splits `down` and prints `w1:p5`. `mktemp -d`
+   prints `/tmp/orchestrator.Rv82pd`. Its `prompt.md` holds the role body of
+   `reviewer-standard.md` and the reviewer brief. Start `reviewer` from
+   `reviewer-standard.md` as in step 4, then prompt it in the background with
+   `timeout: 1000000`:
+
+   ```bash
+   herdr agent prompt reviewer \
+     "Read /tmp/orchestrator.Rv82pd/prompt.md and carry it out. Reply with your report; do not write a file." \
+     --wait --timeout 900000 \
+     > /tmp/orchestrator.Rv82pd/wait.json 2> /tmp/orchestrator.Rv82pd/wait.err
+   echo "reviewer exit=$?"
+   ```
+
+8. After `reviewer exit=0`, read the report from the pane with
+   `herdr agent read reviewer --source recent-unwrapped --lines 300`.
+9. Follow-up: finding 1 is accepted. Write
+   `/tmp/orchestrator.k3Qx1a/follow-up.md` with the fix brief above and prompt
+   `minion-1` in the background as in step 5, with `follow-up.md`,
+   `final-2.md` and `wait-2.json`. The fix is not material, so no second
+   review round.
+10. Finish: write the final report, naming the Herdr path, then close what
+    you created:
+
+    ```bash
+    herdr pane close w1:p5; herdr pane close w1:p4
+    rm -rf /tmp/orchestrator.k3Qx1a /tmp/orchestrator.Rv82pd
+    ```
 
 ## The final report
 
