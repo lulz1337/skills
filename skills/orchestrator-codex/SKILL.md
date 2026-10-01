@@ -57,10 +57,15 @@ Then read these files. Paths are relative to this skill's directory:
   `herdr.md` passes: every Codex of this task runs as a visible agent in its
   own pane, briefed from a file and followed up in place. This is the Herdr
   path. Otherwise take the host path: run `codex exec` as the procedure says.
-- `references/herdr.md` of the `orchestrator-claude` skill when `--visible`
-  is set: the shared Herdr procedure that this skill's `herdr.md` extends.
-  A path relative to this skill cannot reach another plugin's folder, so
-  install the `orchestrator-claude` plugin and read the file from there.
+- `$claude_dir/references/herdr.md` when `--visible` is set: the shared Herdr
+  procedure that this skill's `herdr.md` extends. `$claude_dir` is the
+  directory of the sibling skill `orchestrator-claude`. Installed with the
+  skills CLI, it is `"$(dirname "$skill_dir")/orchestrator-claude"`, where
+  `$skill_dir` is this skill's directory; installed as a plugin from the same
+  marketplace, it is the one version folder in
+  `"$(dirname "$(dirname "$skill_dir")")/orchestrator-claude/"`. If neither
+  exists, stop and ask the user where it is installed. Never invoke
+  `/orchestrator-claude` to find it, because that loads its procedure.
 
 Those files are the sources of truth. Follow the shared procedure through
 verification, review, and any accepted fixes. On the host path, when

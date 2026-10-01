@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "orchestrator-claude",
-  "description": "Run a task as an orchestrator over Claude subagents: a minion executes and a reviewer reviews, with the model pair chosen by a mode (quick, fast, standard, comprehensive).",
+  "description": "Run a task as an orchestrator over Claude subagents: a minion executes and, from fast up, a reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them.",
   "version": "1.0.0",
   "author": {
     "name": "lulz1337",

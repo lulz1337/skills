@@ -7,10 +7,10 @@ pane instead of a hidden subagent.
 This is the Herdr path; the `Agent` tool is the host path.
 
 This file is the orchestration layer over the `herdr` CLI. The installed
-binary's help is the authority for command syntax, as
-the `herdr` skill says: read it with `herdr <group>` or
-`herdr <group> <command> --help`, and never run bare `herdr`, which opens the
-TUI. Every command below exists in `herdr` 0.9.3.
+binary's help is the authority for command syntax, as the `herdr` skill
+says (the binary prints that skill with `herdr --skill`): read it with
+`herdr <group>` or `herdr <group> <command> --help`, and never run bare
+`herdr`, which opens the TUI. Every command below exists in `herdr` 0.9.3.
 
 The herdr skill triggers only when the user mentions Herdr. This skill uses
 Herdr only when the user asks for it with `--visible` and the gate below

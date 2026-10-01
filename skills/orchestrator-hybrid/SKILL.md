@@ -57,13 +57,18 @@ only Claude agent you spawn is the mode's `reviewer-hybrid-<mode>` (none in
 ## Before the first run
 
 Run `git status --short` in the workspace and keep its output as the baseline.
-Then read these files. Paths are relative to this skill's directory unless
-they name another skill. A path relative to this skill cannot reach another
-plugin's folder, so read those files from the directory of the skill named:
+Then read these files. Paths are relative to `$skill_dir`, this skill's
+directory, unless they start with `$codex_dir` or `$claude_dir`, the
+directories of the sibling skills `orchestrator-codex` and
+`orchestrator-claude`. A sibling installed with the skills CLI is at
+`"$(dirname "$skill_dir")/<sibling>"`; a sibling plugin from the same
+marketplace is the one version folder in
+`"$(dirname "$(dirname "$skill_dir")")/<sibling>/"`. If neither exists, stop
+and ask the user where the sibling is installed. Never invoke the sibling's
+slash command to find it, because that loads the sibling's procedure.
 
-- `roles/profiles/<mode>.md` of `orchestrator-codex` for the minion's model
-  and reasoning effort, and `roles/minion.md` of `orchestrator-codex` for its
-  prompt and sandbox;
+- `$codex_dir/roles/profiles/<mode>.md` for the minion's model and reasoning
+  effort, and `$codex_dir/roles/minion.md` for its prompt and sandbox;
 - `agents/reviewer-hybrid-<mode>.md` (not for `quick`): the one Claude agent
   type you spawn. It has no write tools. The host lists it as
   `reviewer-hybrid-<mode>` when it was copied to `~/.claude/agents/`, or as
@@ -73,13 +78,12 @@ plugin's folder, so read those files from the directory of the skill named:
   one governs each step;
 - `references/examples.md` before the first brief: the reviewer brief, the
   `Agent` call and the report to write;
-- `references/examples.md` of `orchestrator-codex` for the minion brief, the
-  command, the fix brief and the parallel split. Its reviewer brief is for a
+- `$codex_dir/references/examples.md` for the minion brief, the command, the fix brief and the parallel split. Its reviewer brief is for a
   Codex reviewer and is not used here;
 - `references/pitfalls.md` before the first run;
-- `references/herdr.md` of `orchestrator-claude` and `references/herdr.md` of
-  `orchestrator-codex` when `--visible` is set: the minion and the reviewer run as visible agents in their own
-  panes, briefed from a file and followed up in place. The Herdr section of
+- `$claude_dir/references/herdr.md` and `$codex_dir/references/herdr.md` when
+  `--visible` is set: the minion and the reviewer run as visible agents in
+  their own panes, briefed from a file and followed up in place. The Herdr section of
   this skill's `procedure.md` says what the mix changes there.
 
 Those files are the sources of truth. Follow the procedure through

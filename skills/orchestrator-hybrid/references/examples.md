@@ -42,7 +42,12 @@ sed -n '/^tools:/p; /^model:/p; /^effort:/p' "$skill_dir/agents/reviewer-hybrid-
 ```
 
 where `$skill_dir` is this skill's directory and `$codex_dir` is the
-directory of the `orchestrator-codex` skill.
+directory of the sibling skill `orchestrator-codex`. A sibling installed with
+the skills CLI is at `"$(dirname "$skill_dir")/orchestrator-codex"`; a sibling
+plugin from the same marketplace is the one version folder in
+`"$(dirname "$(dirname "$skill_dir")")/orchestrator-codex/"`. If neither
+exists, stop and ask the user where it is installed. Never invoke
+`/orchestrator-codex` to find it, because that loads its procedure.
 
 Ignore the profile's `reviewer_*` lines: they belong to `/orchestrator-codex`.
 
