@@ -1,84 +1,52 @@
 # Orchestrator (Claude)
 
-A Claude Code skill that turns the main session into an orchestrator. It
-does not do the task itself. It briefs a minion subagent that makes the
-change and runs the checks, then a reviewer subagent that reviews the diff
-without changing anything. Then it rules on each finding and reports.
-
-It runs only when you invoke it.
-
-## Modes
-
-| Mode | Minion | Reviewer | Use for |
-| --- | --- | --- | --- |
-| `quick` | `claude-sonnet-5-5`, medium | none | a settled, small change, no review |
-| `fast` | `claude-sonnet-5-5`, medium | `claude-opus-5-5`, high | a settled change, checked by a reviewer |
-| `standard` | `claude-opus-5-5`, medium | `claude-fable-5-1`, high | the default: implementation needs judgment |
-| `comprehensive` | `claude-opus-5-5`, high | `claude-fable-5-1`, xhigh | work where a missed defect is expensive |
-
-The agent files in `agents/` are the source of truth for these values. To
-change a model, edit the frontmatter there.
+Run a task through delegated workers when explicitly invoked. Claude workers only. The four modes select Claude model aliases and effort; specialist roles have their own definitions.
 
 ## Installation
 
-Install it as a Claude Code plugin. The plugin also installs the seven
-subagents in `agents/`:
-
-```
-/plugin marketplace add lulz1337/skills
-/plugin install orchestrator-claude@skills
-```
-
-The skills CLI installs only the skill, not the subagents. Copy them
-yourself:
+From a clone of this repository, install the shared runtime, roles and guards:
 
 ```bash
-npx skills add lulz1337/skills --skill orchestrator-claude
-cp <skill-dir>/agents/minion-*.md <skill-dir>/agents/reviewer-*.md ~/.claude/agents/
+python3 orchestrator/install.py
 ```
 
-Without the subagents the skill stops and tells you to install them.
+Restart Claude Code. For native Codex, enable hooks and trust them in `/hooks`.
+The [runtime guide](../../orchestrator/README.md) covers prerequisites, model
+selection, tool boundaries and installation into a separate home.
+
+The skill can also be discovered with `npx skills add lulz1337/skills --skill
+orchestrator-claude`, or installed as a Claude Code plugin with `/plugin install
+orchestrator-claude@skills` after adding the `lulz1337/skills` marketplace. Both
+still require the shared runtime installation above. No dotfiles checkout is
+required.
 
 ## Usage
 
-```
-/orchestrator-claude fast rename OrderLine.qty to quantity across the orders package
-/orchestrator-claude comprehensive
-/orchestrator-claude standard --visible add a 30% cap to apply_discount
+```text
+/orchestrator-claude fast rename OrderLine.qty to quantity
 ```
 
-The first word selects the mode. Any other first word means `standard`, and
-the whole argument is the task. A mode with no task sets the mode for the rest
-of the conversation and waits for the task. The mode and `--visible` hold
-until the next `/orchestrator-claude` call.
+The first word selects quick, fast, standard or comprehensive; otherwise the
+mode is standard and the argument is the task. A mode without a task sets the
+mode and waits. `--visible` selects Herdr hosting when available.
 
-Inside the Herdr terminal multiplexer, `--visible` runs every agent in its
-own pane. The default is the host path, even inside Herdr.
+## Workflow
 
-## What it does
+The controller decides, briefs, dispatches and reports. Workers handle repository,
+web and browser work. The verifier runs checks; the reviewer judges the final
+revision from fast upward. Independent Codex runs use a joined batch with actual
+execution intervals. Writable batches retain exclusive ownership claims.
 
-1. **Records a baseline.** It runs `git status --short` before the first
-   spawn, so your uncommitted work stays yours.
-2. **Delegates with a full brief.** Each minion gets a self-contained brief:
-   goal, owned scope, context, evidence, constraints, and the exact checks.
-   Independent pieces with separate files run in parallel, up to nine.
-3. **Runs each check once.** Only the minion runs tests, typechecks, and
-   linters. It uses the narrowest target that covers the changed files.
-4. **Reviews every change from fast up.** The reviewer judges the stable
-   diff against the repository's `AGENTS.md`, `CLAUDE.md`, and `CONTEXT.md`
-   files.
-5. **Rules on the findings.** It accepts a finding and sends it back to a
-   minion as a fix, or it rejects the finding and gives the reason.
+The ten roles are scout, researcher, implementer, runner, verifier, browser,
+reviewer, oracle, sage and critic. Quick excludes reviewer and critic. Only the
+exact user message `orchestrator off` clears persistent mode.
 
-## Structure
+## Package
 
-- `SKILL.md`: the entry point, the modes, and what to read first.
-- `agents/`: one minion per mode and one reviewer per mode from `fast` up.
-- `references/procedure.md`: the workflow, from brief to final report.
-- `references/examples.md`: complete briefs and a final report.
-- `references/pitfalls.md`: failures from measured runs, and the rule that
-  prevents each one.
-- `references/herdr.md`: the Herdr path for `--visible`.
+`agents/` contains worker, reviewer and specialist definitions. `references/` contains the shared workflow and Claude dispatch instructions.
+
+Runtime code and role definitions are shared through the `orchestrator/` bundle
+in this repository. See its guide for free tests and historical evaluations.
 
 ## License
 

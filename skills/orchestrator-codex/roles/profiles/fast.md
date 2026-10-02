@@ -1,15 +1,13 @@
 ---
-minion_model: gpt-6-luna
-minion_reasoning_effort: medium
-reviewer_model: gpt-6-sol
+worker_model: gpt-6-luna
+worker_reasoning_effort: medium
+reviewer_model: gpt-6.1-sol
 reviewer_reasoning_effort: high
+model_selection: latest-in-tier
 ---
 
-`/orchestrator-codex fast`: a cheap minion checked by a stronger reviewer, for
-a mechanical refactor or a focused test change.
-
-`gpt-6-luna` ($0.1 / $0.5 per 1M tokens) executes; the GPT-6 family has no
-terra tier, so luna is the mini model here. `gpt-6-sol` ($2 / $10) reviews at
-`high`. Model cards:
-https://developers.openai.com/api/docs/models/gpt-6-luna and
-https://developers.openai.com/api/docs/models/gpt-6-sol (read 2026-09-23).
+Use the newest account-visible model in each configured tier from Codex
+model/list. The versioned IDs above are minimum versions, not pins.
+Runtime output reports the resolved model and catalog source. Cached and fallback
+metadata are for inspection only; dispatch requires a fresh live catalog and
+stops when the newest eligible model cannot be verified.

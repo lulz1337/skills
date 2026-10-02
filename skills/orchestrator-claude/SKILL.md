@@ -1,76 +1,61 @@
 ---
 name: orchestrator-claude
-description: "Run a task as an orchestrator over Claude subagents: a minion executes and, from fast up, a reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-claude."
+description: "Run a task as an orchestrator over Claude subagents: a worker executes and, from fast up, a reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-claude."
 argument-hint: "[quick|fast|standard|comprehensive] [--visible] [task]"
 disable-model-invocation: true
+disallowed-tools: Read, Edit, Write, NotebookEdit, Glob, Grep
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
-For this task you are Orchestrator. You coordinate, brief, adjudicate, and
-synthesize. You do not perform the delegated work.
+Coordinate the requested task with Claude workers. The main thread owns decisions,
+briefs, dispatch and adjudication; workers own repository, web and browser work.
 
-## Mode
+## Select the mode
 
 Arguments: `$ARGUMENTS`
 
-Remove `--visible` from the arguments first, wherever it appears; it asks for
-the Herdr path. Then the first remaining word is the mode when it is one of
-`quick`, `fast`, `standard` or `comprehensive`; the rest is the task. Any
-other first word means the mode is `standard` and all of the remaining
-argument is the task. No argument means `standard`. The mode and `--visible`
-hold for the rest of the conversation, through every later task, until the
-next `/orchestrator-claude` call. When the argument is a mode with no task, or
-the remaining argument is empty, with or without `--visible`, reply with one
-line naming the mode, the pair it spawns and `visible` when it is set, and
-wait for the task in the user's next message.
+Remove --visible wherever it appears. It selects Herdr hosting. The first
+remaining word selects quick, fast, standard or comprehensive; otherwise use
+standard and treat the whole argument as the task. No argument means standard.
+With no task, reply in one line naming the mode and pair/profile, include visible
+when selected, and wait. Keep the settings across later tasks until the next
+invocation or the user's exact `orchestrator off` message.
 
 | Mode | Spawns | Use for |
 | --- | --- | --- |
-| `quick` | `minion-quick` | a settled, small change, no review |
-| `fast` | `minion-fast`, `reviewer-fast` | a settled change, checked by a reviewer |
-| `standard` | `minion-standard`, `reviewer-standard` | the default: implementation needs judgment |
-| `comprehensive` | `minion-comprehensive`, `reviewer-comprehensive` | work where a missed defect is expensive |
+| `quick` | `worker-quick` | a settled, small change, no review |
+| `fast` | `worker-fast`, `reviewer-fast` | a settled change, checked by a reviewer |
+| `standard` | `worker-standard`, `reviewer-standard` | the default: implementation needs judgment |
+| `comprehensive` | `worker-comprehensive`, `reviewer-comprehensive` | work where a missed defect is expensive |
 
-Spawn only the agents of the current mode, never a `minion-*` or `reviewer-*` of
-another mode. `quick` has no reviewer: spawn no `reviewer-*` at all, run the
-baseline, one minion and the stable diff, and report.
+Quick uses discovery, one implementation scope and verification, with no reviewer
+or critic. Specialist roles are chosen for an actual question or outcome.
 
-## Before the first spawn
+## Load coordination instructions
 
-Run `git status --short` in the workspace and keep its output as the baseline.
-Then read these files. Paths are relative to this skill's directory:
+Run each helper call separately, using the selected mode in place of standard:
 
-- `agents/minion-<mode>.md` and `agents/reviewer-<mode>.md` (`quick` has no
-  reviewer file): the agent types to spawn. Their frontmatter is the source
-  of truth for models, effort, and exposed tools. The minion has write tools;
-  the reviewer has none. The host lists them as `minion-<mode>` when they were
-  copied to `~/.claude/agents/`, or as `orchestrator-claude:minion-<mode>`
-  when this skill was installed as a plugin. Spawn either name; both carry the
-  same definition. If neither exists, stop and tell the user to install the
-  agents (see `README.md`).
-- `references/procedure.md` for the shared Claude workflow;
-- `references/examples.md` before writing the first brief: a complete minion
-  brief, a reviewer brief, a fix brief, a parallel split and the final report,
-  all for a task like yours;
-- `references/pitfalls.md` before the first spawn: the main table records
-  failures that measured runs produced, and the Herdr section lists failures
-  that no eval has measured yet;
-- `references/herdr.md` when `--visible` is set: the Herdr path replaces the
-  host path if the gate in that file passes. Every agent of this task runs as
-  a visible agent in its own pane, briefed from a file and followed up in
-  place. Otherwise take the host path: spawn with the `Agent` tool as the
-  procedure says.
+```bash
+python3 "$HOME/.agents/orchestrator-runtime.py" instructions claude standard
+```
 
-Those files are the sources of truth. Follow the shared procedure through
-verification, review, and any accepted fixes.
+```bash
+python3 "$HOME/.agents/orchestrator-runtime.py" instructions claude standard procedure
+```
 
-## Gotchas
+```bash
+python3 "$HOME/.agents/orchestrator-runtime.py" instructions claude standard workflow
+```
 
-- The orchestrator changes no file in the workspace.
-- Only the minion runs tests, typechecks, linters and builds.
-- `git status --short` runs before the first spawn, parallel or not.
-- Each writable file belongs to one running minion.
-- Without a named scenario from the user, no agent runs, writes or changes an end-to-end test.
-- `quick` has no reviewer: spawn `minion-quick` alone.
+The helper supplies [role contracts](references/roles.md),
+[tool boundaries](references/tools.md) and resolved settings. Follow the shared
+workflow through its completion criteria. Load examples for uncertain dispatch
+syntax, pitfalls for an observed failure, and herdr only for --visible, through
+`instructions claude <mode> <reference>`. Metadata and reports use the helper;
+repository facts, source changes, diffs and checks use workers.
+
+For dependent slices or a retained plan, load scheduling through the helper and
+follow its claim, verification and recovery rules. Single-scope work follows
+the shared workflow directly.

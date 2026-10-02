@@ -1,7 +1,8 @@
 # skills
 
 My portable agent skills. Each skill lives in its own folder under `skills/`
-and is independent of the others. Open a skill's folder for its README with
+and has its own entry point. The three orchestrators share the
+[runtime bundle](orchestrator/). Open a skill's folder for its README with
 installation steps, usage, and everything else it needs.
 
 ## Skills
@@ -29,18 +30,16 @@ installation steps, usage, and everything else it needs.
   video that proves a finished fix or story works. Ties the recording to the
   current worktree and build, validates the file frame by frame, and keeps it
   out of Git.
-- [**orchestrator-claude**](skills/orchestrator-claude/) — Run a task as an
-  orchestrator over Claude subagents. A minion makes the change and runs the
-  checks, a read-only reviewer reviews the diff from `fast` up, and a mode
-  picks the models. `--visible` runs the agents in Herdr panes. The plugin
-  ships the seven subagents.
-- [**orchestrator-codex**](skills/orchestrator-codex/) — The same workflow
-  over `codex exec` processes with GPT-6 models. Waits without polling,
-  follows up with cold runs, and reports token usage per role.
-- [**orchestrator-hybrid**](skills/orchestrator-hybrid/) — A draft that
-  mixes the two: a Codex minion executes and a Claude reviewer from another
-  model family reviews. Needs the other two orchestrator skills. The plugin
-  ships the three reviewer subagents.
+- [**orchestrator-claude**](skills/orchestrator-claude/) — Coordinate Claude
+  workers with ten specialist roles, four modes and persistent tool boundaries.
+- [**orchestrator-codex**](skills/orchestrator-codex/) — Coordinate Codex workers
+  with current family models, joined batches, ownership claims and execution
+  receipts.
+- [**orchestrator-hybrid**](skills/orchestrator-hybrid/) — Coordinate Codex
+  execution with Claude review and independent judgment.
+
+Install all three with `python3 orchestrator/install.py` from this checkout.
+See the [shared runtime guide](orchestrator/README.md) for setup and verification.
 
 ## License
 

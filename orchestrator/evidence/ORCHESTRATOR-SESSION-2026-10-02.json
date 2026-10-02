@@ -1,0 +1,193 @@
+{
+  "session": "25b9b7ed-94a5-4899-9930-b25c904a52fe",
+  "baseline_commit": "50cedb868bf728b9464d11279074fe34cc153b49",
+  "installed_role_prompt_changes": 0,
+  "regressions": {
+    "baseline_commit": "50cedb868bf728b9464d11279074fe34cc153b49",
+    "tests": [
+      "test_batch_executes_concurrently_and_collects_a_failed_child",
+      "test_batch_rejects_invalid_ownership_or_family_before_launch",
+      "test_started_run_cannot_overwrite_its_evidence",
+      "test_rebrief_preserves_the_prompt_during_and_after_execution",
+      "test_writable_batch_accepts_disjoint_retained_claims",
+      "test_writable_batch_rejects_rebound_symlink_and_an_external_owner",
+      "test_report_flags_the_audited_false_empty_output_claims",
+      "test_receipt_recovery_keeps_material_output_and_summary_counts_once",
+      "test_child_configuration_keeps_auth_without_inheriting_host_hooks",
+      "test_batch_rejects_missing_completed_receipts_despite_zero_exit",
+      "test_batch_parallel_credit_requires_overlapping_execution_receipts",
+      "test_repair_after_review_requires_new_verification_and_review",
+      "test_unfinished_earlier_worker_cannot_be_hidden_by_completed_repair"
+    ],
+    "baseline": {
+      "passed": 0,
+      "total": 13,
+      "failures": [
+        "test_started_run_cannot_overwrite_its_evidence (runtime_tests.RuntimeTests.test_started_run_cannot_overwrite_its_evidence)",
+        "test_batch_parallel_credit_requires_overlapping_execution_receipts (suite_tests.OrchestratorCheckTests.test_batch_parallel_credit_requires_overlapping_execution_receipts)",
+        "test_repair_after_review_requires_new_verification_and_review (suite_tests.OrchestratorCheckTests.test_repair_after_review_requires_new_verification_and_review)",
+        "test_unfinished_earlier_worker_cannot_be_hidden_by_completed_repair (suite_tests.OrchestratorCheckTests.test_unfinished_earlier_worker_cannot_be_hidden_by_completed_repair)",
+        "test_batch_executes_concurrently_and_collects_a_failed_child (runtime_tests.RuntimeTests.test_batch_executes_concurrently_and_collects_a_failed_child)",
+        "test_batch_rejects_invalid_ownership_or_family_before_launch (runtime_tests.RuntimeTests.test_batch_rejects_invalid_ownership_or_family_before_launch)",
+        "test_rebrief_preserves_the_prompt_during_and_after_execution (runtime_tests.RuntimeTests.test_rebrief_preserves_the_prompt_during_and_after_execution)",
+        "test_writable_batch_accepts_disjoint_retained_claims (runtime_tests.RuntimeTests.test_writable_batch_accepts_disjoint_retained_claims)",
+        "test_writable_batch_rejects_rebound_symlink_and_an_external_owner (runtime_tests.RuntimeTests.test_writable_batch_rejects_rebound_symlink_and_an_external_owner)",
+        "test_report_flags_the_audited_false_empty_output_claims (runtime_tests.RuntimeTests.test_report_flags_the_audited_false_empty_output_claims)",
+        "test_receipt_recovery_keeps_material_output_and_summary_counts_once (runtime_tests.RuntimeTests.test_receipt_recovery_keeps_material_output_and_summary_counts_once)",
+        "test_child_configuration_keeps_auth_without_inheriting_host_hooks (runtime_tests.RuntimeTests.test_child_configuration_keeps_auth_without_inheriting_host_hooks)",
+        "test_batch_rejects_missing_completed_receipts_despite_zero_exit (runtime_tests.RuntimeTests.test_batch_rejects_missing_completed_receipts_despite_zero_exit)"
+      ]
+    },
+    "candidate": {
+      "passed": 13,
+      "total": 13,
+      "failures": []
+    }
+  },
+  "rejected_prompt_experiments": [
+    {
+      "role": "researcher",
+      "paired_cells": 8,
+      "decision": "rejected",
+      "baseline": {
+        "weighted_score": 4.85,
+        "clarity": 5,
+        "evidence": 4.875,
+        "honesty": 5,
+        "blockers": []
+      },
+      "candidate": {
+        "weighted_score": 4.7875,
+        "clarity": 4.875,
+        "evidence": 4.875,
+        "honesty": 5,
+        "blockers": [
+          "codex-fast-researcher"
+        ]
+      }
+    },
+    {
+      "role": "scout",
+      "paired_cells": 12,
+      "decision": "rejected",
+      "baseline": {
+        "weighted_score": 4.633333333333334,
+        "clarity": 4.5,
+        "evidence": 4.916666666666667,
+        "honesty": 4.916666666666667,
+        "blockers": []
+      },
+      "candidate": {
+        "weighted_score": 4.566666666666666,
+        "clarity": 4.5,
+        "evidence": 4.75,
+        "honesty": 4.833333333333333,
+        "blockers": []
+      }
+    },
+    {
+      "role": "verifier",
+      "paired_cells": 12,
+      "decision": "rejected",
+      "baseline": {
+        "weighted_score": 4.741666666666666,
+        "clarity": 4.666666666666667,
+        "evidence": 4.666666666666667,
+        "honesty": 4.666666666666667,
+        "blockers": []
+      },
+      "candidate": {
+        "weighted_score": 4.716666666666667,
+        "clarity": 4.833333333333333,
+        "evidence": 4.583333333333333,
+        "honesty": 4.5,
+        "blockers": []
+      }
+    }
+  ],
+  "final_batch": {
+    "runs": [
+      {
+        "run": "/tmp/orchestrator-9ftt6k1b",
+        "family": "hybrid",
+        "role": "scout",
+        "model": "gpt-6-luna",
+        "started_at": 1790921512.655623,
+        "status": "completed",
+        "exit_code": 0,
+        "finished_at": 1790921520.9979599,
+        "usage": {
+          "input_tokens": 38012,
+          "cached_input_tokens": 29184,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 105,
+          "reasoning_output_tokens": 0
+        },
+        "completed_receipts": 1,
+        "receipt_ids": [
+          "item_2"
+        ],
+        "report_present": true,
+        "pending_receipt_ids": [],
+        "evidence_issues": []
+      },
+      {
+        "run": "/tmp/orchestrator-g86wwkjr",
+        "family": "hybrid",
+        "role": "scout",
+        "model": "gpt-6-luna",
+        "started_at": 1790921512.6555557,
+        "status": "completed",
+        "exit_code": 0,
+        "finished_at": 1790921522.329739,
+        "usage": {
+          "input_tokens": 38008,
+          "cached_input_tokens": 29184,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 103,
+          "reasoning_output_tokens": 0
+        },
+        "completed_receipts": 1,
+        "receipt_ids": [
+          "item_2"
+        ],
+        "report_present": true,
+        "pending_receipt_ids": [],
+        "evidence_issues": []
+      }
+    ],
+    "run_count": 2,
+    "usage": {
+      "input_tokens": 76020,
+      "cached_input_tokens": 58368,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 208,
+      "reasoning_output_tokens": 0
+    },
+    "peak_concurrency": 2,
+    "finished": true,
+    "batch_exit_code": 0,
+    "workspace": "/tmp/orch-live-batch-pf54_c8t",
+    "reports": {
+      "/tmp/orchestrator-9ftt6k1b": "**Findings** \u2014 `README.md:1`, alpha  \n**Not found** \u2014 none",
+      "/tmp/orchestrator-g86wwkjr": "**Findings** \u2014 `README.md:1` \u2014 beta\n\n**Not found** \u2014 None."
+    }
+  },
+  "verification": {
+    "unit_tests": 186,
+    "passed": 182,
+    "expected_failures": 4,
+    "mutations_caught": 37,
+    "mutations_total": 37,
+    "repo_checks_passed": 20,
+    "repo_checks_failed": 0,
+    "linux_blocking_problems": 0,
+    "linux_warnings": 4
+  },
+  "source_sha256": {
+    "agents/orchestrator-runtime.py": "632eb1d1e9474b208f82b9ca0d9a56ff6c844db99b993f673627930251168f4a",
+    "claude/orchestrator-guard.py": "0e824198febb1729a5ab03c22bb018948672b6b7a52dd455d99578e75e1e697f",
+    "agents/evals/shared/orchestrator/check.py": "367c30856d86993349baa96c4eec18e99c69110be58c9993d737bbc2b029a065",
+    "agents/evals/harness/evals.py": "23a850e267ca3ac8d24897a2db58765fa81de5645bad9eb37458394312e85078"
+  }
+}

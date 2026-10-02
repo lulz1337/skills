@@ -1,83 +1,61 @@
 ---
 name: orchestrator-codex
-description: "Run a task as an orchestrator over Codex processes: a minion executes and, from fast up, a reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-codex."
+description: "Run a task as an orchestrator over Codex processes: a worker executes and, from fast up, a reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-codex."
 argument-hint: "[quick|fast|standard|comprehensive] [--visible] [task]"
 disable-model-invocation: true
+disallowed-tools: Read, Edit, Write, NotebookEdit, Glob, Grep
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
-For this task you are Orchestrator. You coordinate, brief, adjudicate, and
-synthesize. You do not perform the delegated work.
+Coordinate the requested task with Codex workers. The main thread owns decisions,
+briefs, dispatch and adjudication; workers own repository, web and browser work.
 
-## Mode
+## Select the mode
 
 Arguments: `$ARGUMENTS`
 
-Remove `--visible` from the arguments first, wherever it appears; it asks for
-the Herdr path. Then the first remaining word is the mode when it is one of
-`quick`, `fast`, `standard` or `comprehensive`; the rest is the task. Any
-other first word means the mode is `standard` and all of the remaining
-argument is the task. No argument means `standard`. The mode and `--visible`
-hold for the rest of the conversation, through every later task, until the
-next `/orchestrator-codex` call. When the argument is a mode with no task, or
-the remaining argument is empty, with or without `--visible`, reply with one
-line naming the mode, the profile it uses and `visible` when it is set, and
-wait for the task in the user's next message.
+Remove --visible wherever it appears. It selects Herdr hosting. The first
+remaining word selects quick, fast, standard or comprehensive; otherwise use
+standard and treat the whole argument as the task. No argument means standard.
+With no task, reply in one line naming the mode and pair/profile, include visible
+when selected, and wait. Keep the settings across later tasks until the next
+invocation or the user's exact `orchestrator off` message.
 
 | Mode | Profile | Use for |
 | --- | --- | --- |
-| `quick` | `roles/profiles/quick.md` | a settled, small change, no review |
-| `fast` | `roles/profiles/fast.md` | a settled change, checked by a reviewer |
-| `standard` | `roles/profiles/standard.md` | the default: implementation needs judgment |
-| `comprehensive` | `roles/profiles/comprehensive.md` | work where a missed defect is expensive |
+| `quick` | `profiles/quick.md` | a settled, small change, no review |
+| `fast` | `profiles/fast.md` | a settled change, checked by a reviewer |
+| `standard` | `profiles/standard.md` | the default: implementation needs judgment |
+| `comprehensive` | `profiles/comprehensive.md` | work where a missed defect is expensive |
 
-Every run of this task uses the model and reasoning effort of the current
-mode's profile, and no other. On the host path, every `codex exec` passes
-these values, metered through Caveman when it is on `PATH`. On the Herdr
-path, every `herdr agent start --kind codex` passes the same values.
+Quick uses discovery, one implementation scope and verification, with no reviewer
+or critic. Specialist roles are chosen for an actual question or outcome.
 
-## Before the first run
+## Load coordination instructions
 
-Run `git status --short` in the workspace and keep its output as the baseline.
-Then read these files. Paths are relative to this skill's directory:
+Run each helper call separately, using the selected mode in place of standard:
 
-- `roles/profiles/<mode>.md` for the model and reasoning effort of each role;
-- `roles/minion.md` and `roles/reviewer.md` (`quick` runs no reviewer) for
-  their prompts and sandboxes;
-- `references/procedure.md` for the shared Codex workflow;
-- `references/examples.md` before writing the first brief: a complete minion
-  brief, a reviewer brief, a fix brief, a parallel split and the final report,
-  all for a task like yours;
-- `references/pitfalls.md` before the first run: every entry of its main
-  table is a failure a measured run produced, and its Herdr section is not
-  measured yet;
-- `references/herdr.md` when `--visible` is set and the gate in the shared
-  `herdr.md` passes: every Codex of this task runs as a visible agent in its
-  own pane, briefed from a file and followed up in place. This is the Herdr
-  path. Otherwise take the host path: run `codex exec` as the procedure says.
-- `$claude_dir/references/herdr.md` when `--visible` is set: the shared Herdr
-  procedure that this skill's `herdr.md` extends. `$claude_dir` is the
-  directory of the sibling skill `orchestrator-claude`. Installed with the
-  skills CLI, it is `"$(dirname "$skill_dir")/orchestrator-claude"`, where
-  `$skill_dir` is this skill's directory; installed as a plugin from the same
-  marketplace, it is the one version folder in
-  `"$(dirname "$(dirname "$skill_dir")")/orchestrator-claude/"`. If neither
-  exists, stop and ask the user where it is installed. Never invoke
-  `/orchestrator-claude` to find it, because that loads its procedure.
+```bash
+python3 "$HOME/.agents/orchestrator-runtime.py" instructions codex standard
+```
 
-Those files are the sources of truth. Follow the shared procedure through
-verification, review, and any accepted fixes. On the host path, when
-`caveman` is on `PATH`, keep every run metered through it unless its proxy
-cannot start, and report any bypass. On the Herdr path, report every run as
-unmeasured, with the reason "herdr-hosted".
+```bash
+python3 "$HOME/.agents/orchestrator-runtime.py" instructions codex standard procedure
+```
 
-## Gotchas
+```bash
+python3 "$HOME/.agents/orchestrator-runtime.py" instructions codex standard workflow
+```
 
-- The orchestrator changes no file in the workspace.
-- Only the minion runs tests, typechecks, linters and builds.
-- `git status --short` runs before the first run, parallel or not.
-- Each writable file belongs to one running minion.
-- Without a named scenario from the user, no agent runs, writes or changes an end-to-end test.
-- `quick` has no reviewer: run one minion alone.
+The helper supplies [role contracts](references/roles.md),
+[tool boundaries](references/tools.md) and resolved settings. Follow the shared
+workflow through its completion criteria. Load examples for uncertain dispatch
+syntax, pitfalls for an observed failure, and herdr only for --visible, through
+`instructions codex <mode> <reference>`. Metadata and reports use the helper;
+repository facts, source changes, diffs and checks use workers.
+
+For dependent slices or a retained plan, load scheduling through the helper and
+follow its claim, verification and recovery rules. Single-scope work follows
+the shared workflow directly.

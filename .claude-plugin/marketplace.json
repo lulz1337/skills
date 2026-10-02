@@ -45,21 +45,21 @@
     {
       "name": "orchestrator-claude",
       "source": "./skills/orchestrator-claude",
-      "description": "Orchestrate a task over Claude subagents: a minion executes, from fast up a reviewer reviews, and the mode (quick, fast, standard, comprehensive) picks the models. Ships the seven subagents.",
+      "description": "Run a task as an orchestrator over Claude subagents: a worker executes and, from fast up, a reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-claude.",
       "license": "MIT",
       "keywords": ["orchestration", "subagents", "delegation", "review", "claude"]
     },
     {
       "name": "orchestrator-codex",
       "source": "./skills/orchestrator-codex",
-      "description": "Orchestrate a task over codex exec processes: a minion executes, from fast up a read-only reviewer reviews, and the mode picks the GPT-6 models. Reports token usage per role.",
+      "description": "Run a task as an orchestrator over Codex processes: a worker executes and, from fast up, a reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-codex.",
       "license": "MIT",
       "keywords": ["orchestration", "codex", "delegation", "review", "openai"]
     },
     {
       "name": "orchestrator-hybrid",
       "source": "./skills/orchestrator-hybrid",
-      "description": "Draft: orchestrate a task over a Codex minion and, from fast up, a Claude reviewer, with the pair picked by mode. Needs orchestrator-codex and orchestrator-claude. Ships the three reviewer subagents.",
+      "description": "Run a task as an orchestrator over a mixed pair: a Codex worker executes and, from fast up, a Claude reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-hybrid.",
       "license": "MIT",
       "keywords": ["orchestration", "codex", "subagents", "delegation", "review", "claude", "openai"]
     }
