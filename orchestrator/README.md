@@ -42,10 +42,12 @@ changed symlink targets. `--home <directory>` supports an isolated installation;
 | oracle | Diagnose an unresolved failure |
 | sage | Advise on an architectural decision |
 | critic | Challenge a material claim independently |
+| publisher | Build and publish an Artifact page from supplied files (Claude and hybrid) |
 
 Each role has quick, fast, standard and comprehensive variants. Quick excludes
 reviewer and critic. Claude uses Claude workers; Codex uses Codex workers. Hybrid
-uses Codex execution and Claude reviewer, sage and critic roles.
+uses Codex execution and Claude reviewer, sage, critic and publisher roles.
+Publisher uses Sonnet medium in every mode and is unavailable to Codex.
 
 Claude model aliases follow the newest model in their configured family. Codex
 profiles set minimum versions and resolve the newest account-visible model in
@@ -61,8 +63,8 @@ tests, typechecks, lint and builds. The session guard enforces this separation o
 local tool hooks while orchestration is active; hosted tools remain governed by
 instructions. This guard is a workflow boundary, not a security sandbox.
 
-`start-many` joins independent Codex executions and checks retained ownership for
-writable batches. Reports preserve complete receipts, and `summary` reports
+`start-many` joins independent Codex or read-only Claude executions of one kind
+and checks retained ownership for writable Codex batches. Reports preserve complete receipts, and `summary` reports
 actual intervals and usage. Worker configuration is isolated from host hooks.
 Only the exact user message `orchestrator off` clears persistent orchestration.
 

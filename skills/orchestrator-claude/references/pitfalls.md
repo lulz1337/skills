@@ -6,6 +6,9 @@ it, and the check that catches it. The eval suite in
 
 | Pitfall | What happened | Rule |
 | --- | --- | --- |
+| Retrying denied coordination | A denied coordination call is a defect report, not a prompt to retry in other spellings or to ask the user for `orchestrator off`. | Load enforcement once, quote the denied command, and stop with the smallest next action. |
+| Sage or critic as a substitute | Routing scout, browser or verifier work to sage or critic because their dispatch was blocked breaks the boundary silently; in session a3a8d09c the sage disabled the sandbox twice to take screenshots. | Keep the role boundary; browser work goes to the browser role. |
+| Piping the first runtime call | The first runtime call of a session piped through `\| head` or `\| tail` is denied by design. | Run one helper call per command. |
 | Doing the work yourself | The baseline without the skill edited `orders/pricing.py` with an inline `open(..., "w")` script, then reported success. | The orchestrator changes no file in the workspace. Not with Edit, not with a heredoc, not with `sed -i`. A prompt file in a run directory outside the workspace is fine. |
 | Running checks from the orchestrator | Before the "who runs checks" rule, every Claude run executed the unit suite from the orchestrator (1–2×), the worker (2–3×) and the reviewer (1–2×): one task, up to seven test runs. | Only the worker runs tests, typechecks, linters and builds, once after the last edit and again only for what failed. The orchestrator reads the report and records `git status --short` and `git diff`. The reviewer judges the diff. |
 | The wrong pair | An orchestrator that skims the argument spawns the default pair on a `quick` or `comprehensive` task and still passes every outcome check. | Spawn `worker-<mode>` and `reviewer-<mode>` and nothing else; in `quick`, spawn `worker-quick` alone and no reviewer. Name the mode in the final report. |

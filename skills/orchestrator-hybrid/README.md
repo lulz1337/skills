@@ -1,6 +1,6 @@
 # Orchestrator (Hybrid)
 
-Run a task through delegated workers when explicitly invoked. Codex workers execute; Claude reviewer, sage and critic roles provide judgment. Claude hosting does not change this selected family mix.
+Run a task through delegated workers when explicitly invoked. Codex workers execute; Claude reviewer, sage and critic roles provide judgment; a Claude publisher can publish supplied files as an Artifact. Claude hosting does not change this selected family mix.
 
 ## Installation
 
@@ -34,11 +34,12 @@ mode and waits. `--visible` selects Herdr hosting when available.
 
 The controller decides, briefs, dispatches and reports. Workers handle repository,
 web and browser work. The verifier runs checks; the reviewer judges the final
-revision from fast upward. Independent Codex runs use a joined batch with actual
-execution intervals. Writable batches retain exclusive ownership claims.
+revision from fast upward. Independent Codex or read-only Claude runs of one kind use a joined batch with
+actual execution intervals. Writable Codex batches retain exclusive ownership claims.
 
-The ten roles are scout, researcher, implementer, runner, verifier, browser,
-reviewer, oracle, sage and critic. Quick excludes reviewer and critic. Only the
+The eleven roles are scout, researcher, implementer, runner, verifier, browser,
+reviewer, oracle, sage, critic and publisher. Publisher builds an Artifact page
+from supplied files using Claude. Quick excludes reviewer and critic. Only the
 exact user message `orchestrator off` clears persistent mode.
 
 ## Package

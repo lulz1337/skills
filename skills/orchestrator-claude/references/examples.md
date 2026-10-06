@@ -16,8 +16,8 @@ python3 "$HOME/.agents/orchestrator-runtime.py" instructions claude fast
 python3 "$HOME/.agents/orchestrator-runtime.py" baseline
 ```
 
-Dispatch scout with this self-contained brief (Agent for a Claude role; a
-runtime-created run for a Codex role):
+Dispatch scout with this self-contained brief in a runtime-created run
+for either Claude or Codex:
 
 ```text
 GOAL: Locate order_total and all call sites; identify applicable instructions and narrow verification commands.
@@ -52,8 +52,9 @@ python3 "$HOME/.agents/orchestrator-runtime.py" new claude fast implementer
 ```
 
 Use the printed absolute run path in `brief <run> <<'BRIEF'` as tools.md shows.
-For a Codex host role, invoke `start <run>` and later `report <run>`. For a Claude
-host role, dispatch the printed agent_type with Agent and the brief.
+For Codex or read-only Claude roles, invoke `start <run>` and later `report <run>`.
+For Claude implementer, verifier, runner, browser and publisher, dispatch the
+printed agent_type with Agent and the brief.
 
 For --visible, invoke `visible`, then `pane layout` and `pane split --direction
 right`. Use the returned pane ID in `start <run> --pane w1:p4`, and invoke

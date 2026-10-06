@@ -34,16 +34,17 @@ mode and waits. `--visible` selects Herdr hosting when available.
 
 The controller decides, briefs, dispatches and reports. Workers handle repository,
 web and browser work. The verifier runs checks; the reviewer judges the final
-revision from fast upward. Independent Codex runs use a joined batch with actual
-execution intervals. Writable batches retain exclusive ownership claims.
+revision from fast upward. Independent Codex or read-only Claude runs of one kind use a joined batch with
+actual execution intervals. Writable Codex batches retain exclusive ownership claims.
 
-The ten roles are scout, researcher, implementer, runner, verifier, browser,
-reviewer, oracle, sage and critic. Quick excludes reviewer and critic. Only the
+The eleven roles are scout, researcher, implementer, runner, verifier, browser,
+reviewer, oracle, sage, critic and publisher. Publisher builds an Artifact page
+from supplied files using Claude. Quick excludes reviewer and critic. Only the
 exact user message `orchestrator off` clears persistent mode.
 
 ## Package
 
-`agents/` contains worker, reviewer and specialist definitions. `references/` contains the shared workflow and Claude dispatch instructions.
+`agents/` contains worker, reviewer and specialist definitions, including the four publisher modes. `references/` contains the shared workflow and Claude dispatch instructions.
 
 Runtime code and role definitions are shared through the `orchestrator/` bundle
 in this repository. See its guide for free tests and historical evaluations.

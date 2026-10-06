@@ -12,6 +12,7 @@ import re
 import selectors
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -21,7 +22,7 @@ AGENTS = Path(__file__).resolve().parent
 FAMILIES = ("claude", "codex", "hybrid")
 MODES = ("quick", "fast", "standard", "comprehensive")
 ROLES = ("scout", "verifier", "runner", "researcher", "browser", "implementer",
-         "reviewer", "oracle", "sage", "critic")
+         "reviewer", "oracle", "sage", "critic", "publisher")
 READ_ONLY = {"scout", "researcher", "reviewer", "oracle", "sage", "critic"}
 REFERENCES = ("procedure", "examples", "pitfalls", "herdr", "roles", "tools", "workflow", "enforcement", "scheduling")
 MODEL_VERSION = re.compile(r"^gpt-(\d+(?:\.\d+)*)-(luna|terra|sol|astra)$")
@@ -40,13 +41,50 @@ def execution_events(run):
             continue
         if isinstance(value, dict):
             events.append(value)
-    return events
+    receipts = {}
+    mapped = []
+    for event in events:
+        mapped.append(event)
+        message = event.get("message")
+        content = message.get("content", []) if isinstance(message, dict) else []
+        if event.get("type") in {"assistant", "user"} and isinstance(content, list):
+            for block in content:
+                if not isinstance(block, dict):
+                    continue
+                if event["type"] == "assistant" and block.get("type") == "tool_use":
+                    receipt_id = block.get("id")
+                    if not receipt_id:
+                        continue
+                    inputs = block.get("input") or {}
+                    receipt = {"id": receipt_id,
+                               "type": "command_execution" if block.get("name") == "Bash" else block.get("name"),
+                               "command": inputs.get("command", "") if block.get("name") == "Bash" else json.dumps(inputs, separators=(",", ":"))}
+                    receipts[receipt_id] = receipt
+                    mapped.append({"type": "item.started", "item": receipt})
+                elif event["type"] == "user" and block.get("type") == "tool_result":
+                    receipt = receipts.get(block.get("tool_use_id"))
+                    if receipt is not None:
+                        output = block.get("content", "")
+                        if isinstance(output, list):
+                            output = "\n".join(str(part.get("text", "")) if isinstance(part, dict) else str(part) for part in output)
+                        mapped.append({"type": "item.completed", "item": {
+                            **receipt, "aggregated_output": str(output), "is_error": bool(block.get("is_error"))}})
+        if event.get("type") == "result":
+            usage = event.get("usage") or {}
+            cached = usage.get("cache_read_input_tokens", 0)
+            written = usage.get("cache_creation_input_tokens", 0)
+            mapped.append({"type": "turn.completed", "usage": {
+                "input_tokens": usage.get("input_tokens", 0) + cached + written,
+                "cached_input_tokens": cached, "cache_write_input_tokens": written,
+                "output_tokens": usage.get("output_tokens", 0), "reasoning_output_tokens": 0}})
+    return mapped
 
 
 def execution_summary(run):
     events = execution_events(run)
     receipts = [event["item"] for event in events if event.get("type") == "item.completed"
-                and event.get("item", {}).get("type") in {"command_execution", "mcp_tool_call", "web_search"}]
+                and (event.get("item", {}).get("type") in {"command_execution", "mcp_tool_call", "web_search"}
+                     or "is_error" in event.get("item", {}))]
     usage = {}
     for event in events:
         if event.get("type") == "turn.completed":
@@ -58,9 +96,24 @@ def execution_summary(run):
     final = artifact(run, "final.md")
     report = final.read_text() if final.exists() else ""
     issues = []
+    for event in events:
+        if event.get("type") == "assistant" and isinstance(event.get("message"), dict):
+            content = event["message"].get("content", [])
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "tool_use" and not block.get("id"):
+                        issues.append("Malformed tool_use block lacks an ID: " + json.dumps(block))
+        if event.get("type") == "result" and (event.get("is_error") or event.get("subtype") != "success"):
+            issues.append(f"Claude result reports subtype={event.get('subtype')!r}, is_error={event.get('is_error')!r}")
+    claude_started = {block.get("id") for event in events
+                      if event.get("type") == "assistant" and isinstance(event.get("message"), dict)
+                      and isinstance(event["message"].get("content"), list)
+                      for block in event["message"]["content"]
+                      if isinstance(block, dict) and block.get("type") == "tool_use"}
     completed = {event.get("item", {}).get("id") for event in events if event.get("type") == "item.completed"}
     pending = [event["item"].get("id") for event in events if event.get("type") == "item.started"
-               and event.get("item", {}).get("type") in {"command_execution", "mcp_tool_call", "web_search"}
+               and (event.get("item", {}).get("type") in {"command_execution", "mcp_tool_call", "web_search"}
+                    or event.get("item", {}).get("id") in claude_started)
                and event["item"].get("id") not in completed]
     if pending and (state.get("status") in {"completed", "failed", "interrupted"}
                     or any(event.get("type") in {"turn.completed", "turn.failed"} for event in events)):
@@ -85,12 +138,14 @@ def execution_summary(run):
         if not commands or all(item.get("aggregated_output", "").strip() for item in commands):
             issues.append("Report claims empty shell output without a matching empty-output receipt")
     if re.search(r"^Receipts:\s*", report, re.M):
-        cited = re.findall(r"\bitem_[A-Za-z0-9_-]+\b", report.split("Receipts:", 1)[1].splitlines()[0])
+        cited = re.findall(r"\b(?:item_[A-Za-z0-9_-]+|toolu_[A-Za-z0-9]+)\b", report.split("Receipts:", 1)[1].splitlines()[0])
         known = {item.get("id") for item in receipts}
         if set(cited) - known:
             issues.append("Report cites receipt IDs absent from completed execution events")
     meta = json.loads(artifact(run, "run.json").read_text())
-    return {"run": str(run), "family": meta["family"], "role": meta["role"], **state, "usage": usage,
+    cost = {"total_cost_usd": event["total_cost_usd"] for event in events
+            if event.get("type") == "result" and "total_cost_usd" in event}
+    return {"run": str(run), "family": meta["family"], "role": meta["role"], **state, **cost, "usage": usage,
             "completed_receipts": len(receipts), "receipt_ids": [item.get("id") for item in receipts],
             "report_present": final.exists(), "pending_receipt_ids": pending, "evidence_issues": issues}
 
@@ -124,7 +179,11 @@ def execute_codex(run, meta, fields, bypass=False):
         if bypass:
             cmd += ["--ignore-user-config", "--config", "model_provider=openai"]
         else:
-            cmd = ["caveman", "run", "--off", "--", *cmd]
+            # Shared compress proxy runs with recovery on (run state: recovery_via_mcp=true).
+            # Caveman 2.0.1's proxyRuntimeGateMatches refuses differing desired recovery_via_mcp;
+            # pass-through (--off) always fell back to "launching this agent direct", unmetered.
+            # Compress with Caveman's ephemeral recovery MCP matches the gate.
+            cmd = ["caveman", "run", "--", *cmd]
         cmd += ["-"]
         try:
             # Preserve account auth and wrapper routing without inheriting the
@@ -147,6 +206,33 @@ def execute_codex(run, meta, fields, bypass=False):
             artifact(run, "execution.json").write_text(json.dumps(state))
 
 
+def execute_claude(run, meta, fields):
+    """Record a read-only Claude role's stream and final result under the run lock."""
+    with unstarted_run(run):
+        state = {"model": fields["model"], "started_at": time.time(), "status": "running"}
+        artifact(run, "execution.json").write_text(json.dumps(state))
+        print(json.dumps({"orchestrator_run": {**meta, **{k: v for k, v in fields.items() if k != "body"},
+                                                "run": str(run)}}), flush=True)
+        cmd = ["claude", "--print", "--output-format", "stream-json", "--verbose", "--no-session-persistence",
+               "--strict-mcp-config", "--permission-mode", "bypassPermissions", "--agent", fields["agent_type"],
+               "--model", fields["model"], "--tools", fields["tools"].replace(" ", ""), "--effort", fields["effort"]]
+        try:
+            env = {key: value for key, value in os.environ.items() if not key.startswith("HERDR_")}
+            with artifact(run, "prompt.md").open() as prompt, artifact(run, "events.jsonl").open("w") as events, artifact(run, "stderr.log").open("w") as errors:
+                rc = subprocess.call(cmd, stdin=prompt, stdout=events, stderr=errors, cwd=meta["workspace"], env=env)
+            for event in execution_events(run):
+                if event.get("type") == "result":
+                    artifact(run, "final.md").write_text(str(event.get("result", "")))
+            state.update(exit_code=rc, status="completed" if rc == 0 else "failed")
+            return rc
+        except BaseException:
+            state.update(status="interrupted")
+            raise
+        finally:
+            state["finished_at"] = time.time()
+            artifact(run, "execution.json").write_text(json.dumps(state))
+
+
 def start_many(args):
     """Preflight the entire independent batch, then join every execution."""
     if not 1 <= args.capacity <= 9 or not 2 <= len(args.runs) <= 9:
@@ -156,9 +242,15 @@ def start_many(args):
         raise ValueError("batch run paths must be unique")
     if len({(meta["family"], meta["workspace"]) for _, meta, _ in runs}) != 1:
         raise ValueError("batch runs must share family and workspace")
+    kinds = {fields["kind"] for _, _, fields in runs}
+    if len(kinds) != 1:
+        raise ValueError("batch runs must share one kind; cannot mix " + " and ".join(sorted(kinds)))
     for run, meta, fields in runs:
         artifact(run, "prompt.md").resolve(strict=True)
-        if fields["kind"] != "codex" or fields["model_source"] != "live Codex model/list":
+        if fields["kind"] == "claude":
+            if meta["role"] not in READ_ONLY:
+                raise ValueError("dispatch this Claude agent with Agent; batch accepts only read-only Claude roles")
+        elif fields["kind"] != "codex" or fields["model_source"] != "live Codex model/list":
             raise ValueError("batch requires Codex roles with fresh live model settings")
         if artifact(run, "execution.json").exists() or artifact(run, "events.jsonl").exists():
             raise ValueError("batch contains a previously started run")
@@ -186,7 +278,7 @@ def start_many(args):
     def launch(values):
         run, meta, fields = values
         try:
-            rc = execute_codex(run, meta, fields, args.bypass_caveman)
+            rc = execute_claude(run, meta, fields) if fields["kind"] == "claude" else execute_codex(run, meta, fields, args.bypass_caveman)
             return {**execution_summary(run), "exit_code": rc}
         except Exception as error:
             return {"run": str(run), "exit_code": 1, "error": str(error)}
@@ -296,9 +388,11 @@ def definition(path):
 
 
 def role_settings(family, mode, role):
+    if family == "codex" and role == "publisher":
+        raise ValueError("publisher is a Claude role; the codex family cannot publish an Artifact")
     if mode == "quick" and role in {"reviewer", "critic"}:
         raise ValueError("quick has no review; choose fast, standard or comprehensive")
-    kind = "claude" if family == "claude" or family == "hybrid" and role in {"reviewer", "sage", "critic"} else "codex"
+    kind = "claude" if family == "claude" or family == "hybrid" and role in {"reviewer", "sage", "critic", "publisher"} else "codex"
     if kind == "claude":
         name = f"worker-{mode}" if role == "implementer" else f"reviewer-{'hybrid-' if family == 'hybrid' else ''}{mode}" if role == "reviewer" else f"orch-{role}-{mode}"
         fields, body = definition(AGENTS / "claude-agents" / f"{name}.md")
@@ -327,9 +421,32 @@ def role_settings(family, mode, role):
             "sandbox": fields["sandbox"], "body": body, "model_source": source}
 
 
+def run_root():
+    # Claude Code's sandbox TMPDIR is join(CLAUDE_CODE_TMPDIR or the system temp dir, claude-<uid>),
+    # and the sandbox mounts that base read-only; the hook runs with TMPDIR unset, so both views
+    # must land on that same per-uid directory.
+    temp = Path(os.environ.get("CLAUDE_CODE_TMPDIR") or tempfile.gettempdir()).resolve()
+    name = f"claude-{os.getuid()}"
+    return temp if temp.name == name else temp / name
+
+
+def ensure_run_root():
+    root = run_root()
+    # Outside the sandbox nothing has created the root yet, and in a shared temp dir another user could.
+    try:
+        root.mkdir(mode=0o700)
+    except FileExistsError:
+        pass
+    info = root.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o022:
+        raise ValueError(f"run root {root} must be a directory owned by uid {os.getuid()} "
+                         "that is not group- or other-writable")
+    return root
+
+
 def run_path(value):
     path = Path(value).resolve(strict=True)
-    temp = Path(tempfile.gettempdir()).resolve()
+    temp = run_root()
     if path.parent != temp or not path.name.startswith("orchestrator-") or not path.is_dir():
         raise ValueError("expected a runtime-created temporary run directory")
     if path.stat().st_uid != os.getuid():
@@ -475,7 +592,7 @@ def graph_summary(plan):
 def graph_action(args):
     if args.action == "plan":
         plan = plan_definition(json.load(sys.stdin), args.family, args.mode, args.workspace)
-        run = Path(tempfile.mkdtemp(prefix="orchestrator-plan-"))
+        run = Path(tempfile.mkdtemp(prefix="orchestrator-plan-", dir=ensure_run_root()))
         save_plan(run, plan)
         print(json.dumps({"plan": str(run), **graph_summary(plan)}))
         return 0
@@ -617,6 +734,8 @@ def main(argv=None):
             print((folder / "references" / "tools.md").read_text())
             print((folder / "references" / "roles.md").read_text())
             for role in ROLES:
+                if args.family == "codex" and role == "publisher":
+                    continue
                 if args.mode == "quick" and role in {"reviewer", "critic"}:
                     continue
                 fields = role_settings(args.family, args.mode, role)
@@ -641,9 +760,9 @@ def main(argv=None):
         return subprocess.call(cmd)
     if args.action == "new":
         fields = role_settings(args.family, args.mode, args.role)
-        run = Path(tempfile.mkdtemp(prefix="orchestrator-"))
+        run = Path(tempfile.mkdtemp(prefix="orchestrator-", dir=ensure_run_root()))
         artifact(run, "run.json").write_text(json.dumps({"family": args.family, "mode": args.mode,
-            "role": args.role, "workspace": str(Path(args.workspace).resolve()),
+            "role": args.role, "kind": fields["kind"], "workspace": str(Path(args.workspace).resolve()),
             "name": f"{args.role}-{run.name.removeprefix('orchestrator-')}"}))
         print(json.dumps({"run": str(run), **{k: v for k, v in fields.items() if k != "body"}}))
         return 0
@@ -658,7 +777,7 @@ def main(argv=None):
                           "use write_stdin to collect its completion and output before reporting. "
                           "Never discard a live session handle or describe a yielded command as empty output. "
                           "Return your report only after your tool executions have completed.\n")
-            artifact(run, "prompt.md").write_text(fields["body"] + "\n\n" + brief)
+            artifact(run, "prompt.md").write_text(brief if fields["kind"] == "claude" else fields["body"] + "\n\n" + brief)
         print(artifact(run, "prompt.md"))
     elif args.action == "report":
         events = execution_events(run)
@@ -682,10 +801,11 @@ def main(argv=None):
                 if event.get("type") in {"thread.started", "turn.completed", "turn.failed", "error"}:
                     print(json.dumps(event))
                 item = event.get("item") or {}
-                if event.get("type") == "item.completed" and item.get("type") == "command_execution":
+                if event.get("type") == "item.completed" and (item.get("type") == "command_execution" or "is_error" in item):
                     key = "verifier_command" if meta["role"] == "verifier" else "worker_command"
                     output = str(item.get("aggregated_output", ""))
-                    print(json.dumps({"run": str(run), "role": meta["role"], key: item.get("command"), "exit_code": item.get("exit_code"),
+                    outcome = {"is_error": item["is_error"]} if "is_error" in item and "exit_code" not in item else {"exit_code": item.get("exit_code")}
+                    print(json.dumps({"run": str(run), "role": meta["role"], key: item.get("command"), **outcome,
                                       "receipt_id": item.get("id"), "output_truncated": not args.full and len(output) > 1000,
                                       "output": output if args.full else output[:1000]}))
         summary = execution_summary(run)
@@ -719,6 +839,8 @@ def main(argv=None):
                 print("Usage: unmeasured, herdr-hosted")
             return rc
         if fields["kind"] != "codex":
+            if fields["kind"] == "claude" and meta["role"] in READ_ONLY:
+                return execute_claude(run, meta, fields)
             raise ValueError("dispatch this Claude agent with Agent; --pane selects visible hosting")
         return execute_codex(run, meta, fields, args.bypass_caveman)
     elif args.action in {"prompt", "read-pane", "wait", "stop"}:

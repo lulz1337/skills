@@ -10,6 +10,9 @@ are not proof that every path has been exercised.
 
 | Pitfall | What would happen | Rule |
 | --- | --- | --- |
+| Retrying denied coordination | A denied coordination call is a defect report, not a prompt to retry in other spellings or to ask the user for `orchestrator off`. | Load enforcement once, quote the denied command, and stop with the smallest next action. |
+| Sage or critic as a substitute | Routing scout, browser or verifier work to sage or critic because their dispatch was blocked breaks the boundary silently; in session a3a8d09c the sage disabled the sandbox twice to take screenshots. | Keep the role boundary; browser work goes to the browser role. |
+| Piping the first runtime call | The first runtime call of a session piped through `\| head` or `\| tail` is denied by design. | Run one helper call per command. |
 | The profile's reviewer | The orchestrator reads `reviewer_model` from `profiles/<mode>.md` and runs a Codex reviewer. | The profile's `reviewer_*` half belongs to `/orchestrator-codex`. The reviewer here is always the Claude agent `reviewer-hybrid-<mode>`. |
 | The parent's reviewer | `reviewer-standard` (fable, high) is spawned on a `standard` task instead of `reviewer-hybrid-standard` (fable, medium). | Spawn `reviewer-hybrid-<mode>` and nothing else; name it in the report. |
 | A Claude worker | A `worker-<mode>` agent is spawned because the Claude procedure was read first. | The worker is Codex, always: `codex exec` on the host path, `--kind codex` in Herdr. |

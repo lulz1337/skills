@@ -17,6 +17,7 @@ thread. Workers never inherit its coordination role or delegate further.
 | oracle | Diagnose a failure that resisted a fix; recommend a cause-based fix | At least one attempted fix failed |
 | sage | Assess design alternatives; recommend one approach | The user asks, or a real design uncertainty remains |
 | critic | Independently critique a change beyond its author's assumptions | Shared code, CI, auth or money, in a mode with review |
+| publisher | Build and publish one Artifact page from supplied files; return the URL and the list of included and missing files. | The user asked for an artifact, page or visual review; the files already exist. |
 
 Use the lowest configured tier that covers the contract. Scout, verifier and
 runner have closed briefs. Do not give them open research or design work.
@@ -25,13 +26,18 @@ mode's worker model; reviewer uses its reviewer model. Oracle, sage and critic
 use the stronger configured tier. `instructions <family> <mode>` prints every
 resolved model, effort, agent type and tool list; those values are authoritative.
 
-Claude implementation uses `worker-<mode>` and review uses `reviewer-<mode>`.
-Other contracts use `orch-<role>-<mode>`. Codex combines `<role>.md` (implementer
+Claude implementer, verifier, runner, browser and publisher use Agent with the
+resolved agent_type. Read-only scout, researcher, reviewer, oracle, sage and
+critic use `new <family> <mode> <role>`, `brief <run>`, `start <run>` and
+`report <run>`; independent runs may share one `start-many` batch.
+Implementation uses `worker-<mode>` and review uses `reviewer-<mode>`;
+other contracts use `orch-<role>-<mode>`. Codex combines `<role>.md` (implementer
 is `worker.md`) with `profiles/<mode>.md`; scout and verifier use the quick profile; runner uses the
 standard worker tier in every mode after lower-tier state-report failures. Oracle, sage and critic use the comprehensive reviewer tier.
 Hybrid uses Codex for execution, discovery, research, browser work and diagnosis;
-review uses `reviewer-hybrid-<mode>`, and sage and critic use Claude
-`orch-<role>-<mode>`. Thus hybrid critique can come from another model family.
+review uses `reviewer-hybrid-<mode>`, and sage, critic and publisher use Claude
+`orch-<role>-<mode>`. Publisher uses Sonnet medium in every mode and is unavailable
+to the codex family. Thus hybrid critique can come from another model family.
 Claude uses latest-family aliases (Sonnet for closed contracts, Opus for
 implementation, Fable for the strongest reasoning roles). Codex queries its live
 model/list catalog and selects the newest visible version in the configured GPT

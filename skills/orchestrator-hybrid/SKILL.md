@@ -7,7 +7,7 @@ disallowed-tools: Read, Edit, Write, NotebookEdit, Glob, Grep
 compatibility: "Needs the shared orchestrator runtime installed, codex and caveman on PATH, and Claude Code for review. herdr is optional."
 license: MIT
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 Coordinate the requested task with Codex execution and Claude review. The main thread owns decisions,

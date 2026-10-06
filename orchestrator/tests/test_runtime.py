@@ -1,11 +1,12 @@
 """Exercise orchestration permissions and process arguments without model calls."""
 
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 import importlib.util
 import io
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,50 @@ def load(path, name):
 
 runtime = load(RUNTIME, "orchestrator_runtime")
 guard = load(GUARD, "orchestrator_guard")
+
+
+@contextmanager
+def temp_root(path):
+    """Make tempfile.gettempdir() resolve to path, as a process started with TMPDIR=path sees it."""
+    original = tempfile.tempdir
+    with patch.dict(os.environ, {"TMPDIR": str(path)}):
+        # A verifier inside Claude Code may inherit CLAUDE_CODE_TMPDIR, which outranks TMPDIR.
+        os.environ.pop("CLAUDE_CODE_TMPDIR", None)
+        tempfile.tempdir = None
+        try:
+            yield
+        finally:
+            tempfile.tempdir = original
+
+
+def sandbox_layout(test, stale_name, stale_file):
+    """Lay out base/claude-<uid> plus an old-style run in bare base; cleanup is registered on test."""
+    temp = tempfile.TemporaryDirectory()
+    test.addCleanup(temp.cleanup)
+    base = Path(temp.name).resolve()
+    sandbox = base / f"claude-{os.getuid()}"
+    sandbox.mkdir(mode=0o700)
+    stale = base / stale_name
+    stale.mkdir()
+    (stale / stale_file).write_text(json.dumps({"family": "claude"}))
+    return base, sandbox, stale
+
+
+@contextmanager
+def sandbox_view(base, sandbox):
+    """The Claude sandbox: TMPDIR is base/claude-<uid> and bare base is read-only.
+
+    Only this view gets a read-only base. The hook runs unsandboxed and can write its TMPDIR;
+    gettempdir() silently skips an unwritable TMPDIR, so a read-only base there would fake /tmp.
+    """
+    base.chmod(0o555)
+    try:
+        # HEAD's run_root() normalized this view to base, which the sandbox cannot write.
+        assert not os.access(base, os.W_OK), "run as a user that read-only modes apply to"
+        with temp_root(sandbox):
+            yield
+    finally:
+        base.chmod(0o700)
 
 
 class GuardTests(unittest.TestCase):
@@ -76,13 +121,17 @@ class GuardTests(unittest.TestCase):
         self.activate()
         self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "worker-standard"}), {})
         self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "general-purpose"}))
+        self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-publisher-standard"}), {})
         self.assertEqual(self.hook(tool_name="Bash", tool_input={"command": 'python3 "$HOME/.agents/orchestrator-runtime.py" new claude standard scout'}), {})
         self.assertTrue(self.hook(tool_name="Bash", tool_input={"command": 'python3 "$HOME/.agents/orchestrator-runtime.py" new codex standard scout'}))
         self.hook("UserPromptSubmit", prompt="/orchestrator-codex standard")
+        self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-publisher-standard"}))
         self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "worker-standard"}))
         self.hook("UserPromptSubmit", prompt="/orchestrator-hybrid standard")
         self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "reviewer-hybrid-standard"}), {})
         self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-critic-standard"}), {})
+        self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-publisher-standard"}), {})
+        self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "general-purpose"}))
         self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "worker-standard"}))
 
     def test_bash_allows_coordination_and_blocks_alternate_repository_access(self):
@@ -130,7 +179,7 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(len(original["hooks"]["PreToolUse"][0]["hooks"]), 2)
 
     def test_saved_run_cannot_launch_after_switching_family(self):
-        with tempfile.TemporaryDirectory(prefix="orchestrator-") as temp:
+        with tempfile.TemporaryDirectory(prefix="orchestrator-", dir=runtime.ensure_run_root()) as temp:
             run = Path(temp)
             (run / "run.json").write_text(json.dumps({"family": "codex"}))
             self.activate()
@@ -140,6 +189,80 @@ class GuardTests(unittest.TestCase):
                 self.hook("UserPromptSubmit", prompt="/orchestrator-codex standard")
                 self.assertEqual(self.hook(tool_name="Bash", tool_input={"command": command}), {})
                 self.activate()
+
+
+    def bash(self, command, **inputs):
+        return self.hook(tool_name="Bash", tool_input={"command": command, **inputs})
+
+    def test_coordination_calls_cannot_disable_the_sandbox_but_starts_can(self):
+        script = 'python3 "$HOME/.agents/orchestrator-runtime.py"'
+        self.activate()
+        with tempfile.TemporaryDirectory(prefix="orchestrator-", dir=runtime.ensure_run_root()) as temp:
+            run = Path(temp)
+            (run / "run.json").write_text(json.dumps({"family": "claude"}))
+            for action in ("new claude standard scout", f"report {run}"):
+                with self.subTest(action=action):
+                    reason = self.bash(f"{script} {action}", dangerouslyDisableSandbox=True)["hookSpecificOutput"]["permissionDecisionReason"]
+                    self.assertIn(f"call '{action.split()[0]}' works inside the sandbox", reason)
+                    self.assertIn("Retry it without dangerouslyDisableSandbox", reason)
+                    self.assertIn("report the error to the user", reason)
+                    self.assertEqual(self.bash(f"{script} {action}"), {})
+            self.assertEqual(self.bash(f"{script} new claude standard scout", dangerouslyDisableSandbox=False), {})
+            for action in (f"start {run}", f"start-many {run}"):
+                with self.subTest(action=action):
+                    self.assertEqual(self.bash(f"{script} {action}", dangerouslyDisableSandbox=True), {})
+        # The rule is a deny-list: an unknown subcommand or another command never meets it.
+        self.assertIsNone(guard.sandbox_bypass_action(f"{script} future-action x", {"dangerouslyDisableSandbox": True}))
+        unknown = self.bash(f"{script} future-action x", dangerouslyDisableSandbox=True)
+        self.assertNotIn("works inside the sandbox", json.dumps(unknown))
+        self.assertEqual(self.bash("git status --short", dangerouslyDisableSandbox=True), {})
+        self.assertIsNone(guard.sandbox_bypass_action("python3 other.py new claude standard scout", {"dangerouslyDisableSandbox": True}))
+        self.assertNotIn("works inside the sandbox", json.dumps(self.bash("ls", dangerouslyDisableSandbox=True)))
+
+    def test_claude_starts_cannot_disable_the_sandbox_but_codex_starts_can(self):
+        script = 'python3 "$HOME/.agents/orchestrator-runtime.py"'
+        self.activate()
+        with tempfile.TemporaryDirectory(prefix="orchestrator-", dir=runtime.ensure_run_root()) as temp:
+            run = Path(temp)
+            command = f"{script} start {run}"
+            for kind in ("claude", "codex"):
+                with self.subTest(kind=kind):
+                    (run / "run.json").write_text(json.dumps({"family": "claude", "kind": kind}))
+                    self.assertEqual(self.bash(command), {})
+                    decision = self.bash(command, dangerouslyDisableSandbox=True)
+                    if kind == "claude":
+                        self.assertEqual(decision["hookSpecificOutput"]["permissionDecision"], "deny")
+                        self.assertIn("Claude runs stay inside the sandbox", decision["hookSpecificOutput"]["permissionDecisionReason"])
+                        self.assertIn("without dangerouslyDisableSandbox", decision["hookSpecificOutput"]["permissionDecisionReason"])
+                        self.assertEqual(self.bash(f"{script} start --bypass-caveman {run}", dangerouslyDisableSandbox=True), decision)
+                    else:
+                        self.assertEqual(decision, {})
+                        self.assertEqual(self.bash(f"{script} start --bypass-caveman {run}", dangerouslyDisableSandbox=True), {})
+            (run / "run.json").write_text("unreadable JSON")
+            self.assertIsNone(guard.sandbox_bypass_action(command, {"dangerouslyDisableSandbox": True}))
+            (run / "run.json").unlink()
+            self.assertIsNone(guard.sandbox_bypass_action(command, {"dangerouslyDisableSandbox": True}))
+
+    def test_claude_batches_cannot_disable_the_sandbox_but_codex_batches_can(self):
+        script = 'python3 "$HOME/.agents/orchestrator-runtime.py"'
+        self.activate()
+        root = runtime.ensure_run_root()
+        with tempfile.TemporaryDirectory(prefix="orchestrator-", dir=root) as first, tempfile.TemporaryDirectory(prefix="orchestrator-", dir=root) as second:
+            runs = [Path(first), Path(second)]
+            command = f"{script} start-many {' '.join(map(str, runs))}"
+            for kind in ("claude", "codex"):
+                with self.subTest(kind=kind):
+                    for run in runs:
+                        (run / "run.json").write_text(json.dumps({"family": "claude", "kind": kind}))
+                    self.assertEqual(self.bash(command), {})
+                    decision = self.bash(command, dangerouslyDisableSandbox=True)
+                    if kind == "claude":
+                        self.assertEqual(decision["hookSpecificOutput"]["permissionDecision"], "deny")
+                        self.assertIn("Claude runs stay inside the sandbox", decision["hookSpecificOutput"]["permissionDecisionReason"])
+                        self.assertIn("without dangerouslyDisableSandbox", decision["hookSpecificOutput"]["permissionDecisionReason"])
+                    else:
+                        self.assertEqual(decision, {})
+                    self.assertEqual(self.bash(f"{command} --bypass-caveman --capacity 2", dangerouslyDisableSandbox=True), decision)
 
 
 class RuntimeTests(unittest.TestCase):
@@ -185,7 +308,15 @@ class RuntimeTests(unittest.TestCase):
                             with self.assertRaises(ValueError):
                                 runtime.role_settings(family, mode, role)
                             continue
+                        if family == "codex" and role == "publisher":
+                            with self.assertRaisesRegex(ValueError, "publisher is a Claude role; the codex family cannot publish an Artifact"):
+                                runtime.role_settings(family, mode, role)
+                            continue
                         settings = runtime.role_settings(family, mode, role)
+                        if role == "publisher":
+                            self.assertEqual(settings["kind"], "claude")
+                            self.assertEqual(settings["agent_type"], f"orch-publisher-{mode}")
+                            self.assertIn("Artifact", settings["tools"].replace(" ", "").split(","))
                         self.assertTrue(settings["body"])
                         if settings["kind"] == "codex":
                             expected = "read-only" if role in runtime.READ_ONLY else "danger-full-access"
@@ -194,6 +325,121 @@ class RuntimeTests(unittest.TestCase):
                             self.assertFalse({"Write", "Edit", "Agent", "Task"} & set(settings["tools"].replace(" ", "").split(",")))
         self.assertEqual(runtime.role_settings("hybrid", "standard", "critic")["kind"], "claude")
         self.assertEqual(runtime.role_settings("hybrid", "standard", "implementer")["kind"], "codex")
+
+    def test_sandbox_tmpdir_and_hook_agree_on_run_root(self):
+        original_tempdir = tempfile.tempdir
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                sandbox = Path(temp) / f"claude-{os.getuid()}"
+                sandbox.mkdir(mode=0o700)
+                with temp_root(sandbox):
+                    run = self.new_run("claude", "standard", "scout")
+                    self.assertEqual(run.parent, sandbox.resolve())
+                with temp_root(temp):
+                    self.assertEqual(runtime.run_path(run), run)
+                    self.assertTrue(guard.coordination_command(
+                        f'python3 "$HOME/.agents/orchestrator-runtime.py" start {run}', "orchestrator-claude"))
+                    nested = sandbox / "other" / "orchestrator-invalid"
+                    nested.mkdir(parents=True)
+                    with self.assertRaisesRegex(ValueError, "expected a runtime-created temporary run directory"):
+                        runtime.run_path(nested)
+                    runtime.shutil.rmtree(run)
+        finally:
+            tempfile.tempdir = original_tempdir
+
+    def test_sandbox_creates_runs_under_its_own_tmpdir_and_hook_accepts_them(self):
+        base, sandbox, stale = sandbox_layout(self, "orchestrator-old", "run.json")
+        with sandbox_view(base, sandbox):
+            run = self.new_run("claude", "standard", "scout")
+        self.assertEqual(run.parent, sandbox)
+        with temp_root(base):
+            self.assertEqual(runtime.run_root(), sandbox)
+            self.assertEqual(runtime.run_path(run), run)
+            self.assertTrue(guard.coordination_command(
+                f'python3 "$HOME/.agents/orchestrator-runtime.py" start {run}', "orchestrator-claude"))
+            # Runs that older sessions left under bare /tmp no longer validate.
+            with self.assertRaisesRegex(ValueError, "expected a runtime-created temporary run directory"):
+                runtime.run_path(stale)
+            self.assertFalse(guard.coordination_command(
+                f'python3 "$HOME/.agents/orchestrator-runtime.py" start {stale}', "orchestrator-claude"))
+
+    def test_creation_makes_a_private_root_and_refuses_a_shared_one(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp).resolve()
+            root = base / f"claude-{os.getuid()}"
+            with temp_root(base):
+                run = self.new_run("claude", "standard", "scout")
+                self.assertEqual(run.parent, root)
+                self.assertEqual(root.stat().st_mode & 0o777, 0o700)
+                runtime.shutil.rmtree(run)
+                for mode in (0o770, 0o707):
+                    root.chmod(mode)
+                    for arguments in (["new", "claude", "standard", "scout"], ["plan", "claude", "standard"]):
+                        with self.subTest(mode=oct(mode), action=arguments[0]), \
+                                patch.object(sys, "stdin", io.StringIO(json.dumps(GraphTests.DEFINITION))), \
+                                redirect_stdout(io.StringIO()), \
+                                self.assertRaisesRegex(ValueError, re.escape(f"run root {root} must be a directory owned by uid")):
+                            runtime.main(arguments)
+                    self.assertEqual(list(root.iterdir()), [])
+
+    def assert_root_refused(self, root):
+        for arguments in (["new", "claude", "standard", "scout"], ["plan", "claude", "standard"]):
+            with self.subTest(action=arguments[0]), \
+                    patch.object(sys, "stdin", io.StringIO(json.dumps(GraphTests.DEFINITION))), \
+                    redirect_stdout(io.StringIO()), \
+                    self.assertRaisesRegex(ValueError, re.escape(f"run root {root} must be a directory owned by uid")):
+                runtime.main(arguments)
+
+    def test_creation_refuses_a_symlinked_root_without_writing_through_it(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp).resolve()
+            target = base / "private"
+            target.mkdir(mode=0o700)
+            root = base / f"claude-{os.getuid()}"
+            root.symlink_to(target)
+            with temp_root(base):
+                self.assert_root_refused(root)
+            self.assertEqual(list(target.iterdir()), [])
+
+    def test_creation_refuses_a_root_that_is_a_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp).resolve()
+            root = base / f"claude-{os.getuid()}"
+            root.write_text("")
+            root.chmod(0o600)
+            with temp_root(base):
+                self.assert_root_refused(root)
+            self.assertTrue(root.is_file())
+
+    def test_creation_refuses_a_root_owned_by_another_uid(self):
+        other = os.getuid() + 1
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp).resolve()
+            # The private directory is ours; under the patched uid it reads as another user's.
+            root = base / f"claude-{other}"
+            root.mkdir(mode=0o700)
+            with temp_root(base), patch.object(runtime.os, "getuid", return_value=other):
+                self.assertEqual(runtime.run_root(), root)
+                self.assert_root_refused(root)
+            self.assertEqual(list(root.iterdir()), [])
+
+    def test_claude_code_tmpdir_sets_the_base_for_hook_and_sandbox(self):
+        with tempfile.TemporaryDirectory() as temp, tempfile.TemporaryDirectory() as unrelated:
+            base = Path(temp).resolve()
+            root = base / f"claude-{os.getuid()}"
+            for tmpdir in (unrelated, root):
+                with self.subTest(tmpdir=str(tmpdir)), temp_root(tmpdir), \
+                        patch.dict(os.environ, {"CLAUDE_CODE_TMPDIR": temp}):
+                    self.assertEqual(runtime.run_root(), root)
+            with temp_root(unrelated), patch.dict(os.environ, {"CLAUDE_CODE_TMPDIR": ""}):
+                self.assertEqual(runtime.run_root(), Path(unrelated).resolve() / root.name)
+
+    def test_instructions_skip_codex_publisher_and_include_hybrid_publisher(self):
+        for family in ("codex", "hybrid"):
+            with self.subTest(family=family), redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(runtime.main(["instructions", family, "standard"]), 0)
+            roles = [json.loads(line)["role"] for line in output.getvalue().splitlines() if line.startswith('{"role":')]
+            self.assertEqual(roles.count("publisher"), 0 if family == "codex" else 1)
 
     def test_brief_is_literal_and_codex_process_has_resolved_settings(self):
         run = self.new_run()
@@ -205,7 +451,7 @@ class RuntimeTests(unittest.TestCase):
         with patch.object(runtime.subprocess, "call", return_value=0) as call, redirect_stdout(io.StringIO()):
             self.assertEqual(runtime.main(["start", str(run)]), 0)
             cmd = call.call_args.args[0]
-            self.assertEqual(cmd[:6], ["caveman", "run", "--off", "--", "codex", "exec"])
+            self.assertEqual(cmd[:5], ["caveman", "run", "--", "codex", "exec"])
             self.assertIn("gpt-6.1-sol", cmd)
             self.assertIn("sandbox_mode=danger-full-access", cmd)
             self.assertIn("features.hooks=false", cmd)
@@ -214,6 +460,122 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(cmd[-1], "-")
             self.assertNotIn("-a", cmd)
             self.assertEqual(call.call_args.kwargs["stdin"].name, str(run / "prompt.md"))
+
+    def test_claude_read_only_start_records_stream_receipts_usage_and_final(self):
+        run = self.new_run("claude", "quick", "scout")
+        self.assertEqual(json.loads((run / "run.json").read_text())["kind"], "claude")
+        with patch.object(sys, "stdin", io.StringIO("Locate source")), redirect_stdout(io.StringIO()):
+            runtime.main(["brief", str(run)])
+        self.assertEqual((run / "prompt.md").read_text(), "Locate source")
+        # Relevant fields from item_9's nested stream in the real probe at
+        # /tmp/claude-1000/orchestrator-iryjy9fj/events.jsonl; session IDs omitted.
+        fixture = [
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "toolu_01K5RrK9Umjn4g31fTVzFkFf",
+                "name": "Bash", "input": {"command": "echo probe-ok", "description": "Echo probe-ok to verify shell access"}}],
+                "usage": {"input_tokens": 10, "cache_creation_input_tokens": 20259, "cache_read_input_tokens": 18433, "output_tokens": 5}}},
+            {"type": "user", "message": {"role": "user", "content": [{"tool_use_id": "toolu_01K5RrK9Umjn4g31fTVzFkFf",
+                "type": "tool_result", "content": "probe-ok", "is_error": False}]}},
+            {"type": "result", "total_cost_usd": 0.0517235, "usage": {"input_tokens": 18,
+                "cache_creation_input_tokens": 22344, "cache_read_input_tokens": 57125, "output_tokens": 261},
+                "subtype": "success", "is_error": False, "result": "Done. Shell access verified."}]
+        stream = "\n".join(map(json.dumps, fixture)) + "\n"
+        def child(command, **kwargs):
+            self.assertEqual(command, ["claude", "--print", "--output-format", "stream-json", "--verbose",
+                "--no-session-persistence", "--strict-mcp-config", "--permission-mode", "bypassPermissions",
+                "--agent", "orch-scout-quick", "--model", "sonnet", "--tools", "Bash,Read,Grep,Glob", "--effort", "medium"])
+            self.assertEqual(kwargs["cwd"], json.loads((run / "run.json").read_text())["workspace"])
+            self.assertEqual(kwargs["stdin"].read(), "Locate source")
+            self.assertEqual(Path(kwargs["stdout"].name), run / "events.jsonl")
+            self.assertEqual(Path(kwargs["stderr"].name), run / "stderr.log")
+            self.assertEqual(kwargs["env"], {key: value for key, value in os.environ.items() if not key.startswith("HERDR_")})
+            with self.assertRaisesRegex(ValueError, "already executing"):
+                with runtime.unstarted_run(run):
+                    pass
+            kwargs["stdout"].write(stream)
+            kwargs["stderr"].write("probe stderr")
+            return 0
+        with patch.dict(os.environ, {"HERDR_ENV": "1", "HERDR_PANE_ID": "child-pane", "HERDR_OTHER": "strip", "KEEP_CHILD_ENV": "keep"}), \
+                patch.object(runtime.subprocess, "call", side_effect=child), redirect_stdout(io.StringIO()):
+            self.assertEqual(runtime.main(["start", str(run)]), 0)
+        self.assertEqual((run / "events.jsonl").read_text(), stream)
+        self.assertEqual((run / "stderr.log").read_text(), "probe stderr")
+        self.assertEqual((run / "final.md").read_text(), "Done. Shell access verified.")
+        summary = runtime.execution_summary(run)
+        self.assertEqual(summary["usage"], {"input_tokens": 79487, "cached_input_tokens": 57125,
+            "cache_write_input_tokens": 22344, "output_tokens": 261, "reasoning_output_tokens": 0})
+        self.assertEqual(summary["total_cost_usd"], 0.0517235)
+        self.assertEqual(summary["completed_receipts"], 1)
+        self.assertEqual(summary["pending_receipt_ids"], [])
+        self.assertEqual(summary["evidence_issues"], [])
+        receipt_id = "toolu_01K5RrK9Umjn4g31fTVzFkFf"
+        (run / "final.md").write_text(f"Receipts: {receipt_id}\n")
+        self.assertEqual(runtime.execution_summary(run)["evidence_issues"], [])
+        (run / "final.md").write_text("Receipts: toolu_01ABC\n")
+        self.assertIn("Report cites receipt IDs absent from completed execution events", runtime.execution_summary(run)["evidence_issues"])
+        (run / "final.md").write_text(fixture[2]["result"])
+        with redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(runtime.main(["report", str(run), "--receipt", receipt_id]), 0)
+        self.assertEqual(json.loads(output.getvalue()), {"id": receipt_id, "type": "command_execution",
+            "command": "echo probe-ok", "aggregated_output": "probe-ok", "is_error": False})
+        with redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(runtime.main(["report", str(run)]), 0)
+        receipt = next(json.loads(line) for line in output.getvalue().splitlines() if '"worker_command"' in line)
+        self.assertFalse(receipt["is_error"])
+        self.assertNotIn("exit_code", receipt)
+        with redirect_stdout(io.StringIO()) as output:
+            runtime.main(["summary", str(run), str(run)])
+        self.assertEqual(json.loads(output.getvalue())["usage"], summary["usage"])
+        with patch.object(runtime.subprocess, "call") as child:
+            with self.assertRaisesRegex(ValueError, "already started"):
+                runtime.main(["start", str(run)])
+            for role in ("implementer", "runner", "verifier", "browser", "publisher"):
+                blocked = self.new_run("claude", "quick", role)
+                (blocked / "prompt.md").write_text("Brief")
+                with self.assertRaisesRegex(ValueError, "dispatch this Claude agent with Agent"):
+                    runtime.main(["start", str(blocked)])
+            child.assert_not_called()
+        # Exercise other tool names and content blocks, then a missing result.
+        fixture[0]["message"]["content"][0].update(name="Read", input={"file_path": "README.md"})
+        fixture[1]["message"]["content"][0].update(content=[{"type": "text", "text": "missing"}], is_error=True)
+        (run / "events.jsonl").write_text("\n".join(map(json.dumps, fixture)))
+        with redirect_stdout(io.StringIO()) as output:
+            runtime.main(["report", str(run), "--receipt", receipt_id])
+        self.assertEqual(json.loads(output.getvalue()), {"id": receipt_id, "type": "Read",
+            "command": '{"file_path":"README.md"}', "aggregated_output": "missing", "is_error": True})
+        (run / "events.jsonl").write_text(json.dumps(fixture[0]) + "\n" + json.dumps(fixture[2]))
+        summary = runtime.execution_summary(run)
+        self.assertEqual(summary["completed_receipts"], 0)
+        self.assertEqual(summary["pending_receipt_ids"], [receipt_id])
+        self.assertIn("lack completed execution receipts", summary["evidence_issues"][0])
+        fixture[0]["message"]["content"][0].pop("id")
+        (run / "events.jsonl").write_text(json.dumps(fixture[0]) + "\n" + json.dumps(fixture[2]))
+        summary = runtime.execution_summary(run)
+        self.assertEqual(summary["pending_receipt_ids"], [])
+        self.assertIn('Malformed tool_use block lacks an ID:', summary["evidence_issues"][0])
+        self.assertIn('"name": "Read"', summary["evidence_issues"][0])
+        with redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(runtime.main(["report", str(run)]), 1)
+        self.assertIn("Malformed tool_use block", output.getvalue())
+        with redirect_stdout(io.StringIO()) as output:
+            runtime.main(["summary", str(run)])
+        self.assertEqual(json.loads(output.getvalue())["runs"][0]["evidence_issues"], summary["evidence_issues"])
+
+    def test_claude_error_results_keep_final_and_exit_status_but_flag_evidence(self):
+        for subtype, is_error, exit_code in (("error_max_turns", False, 0), ("success", True, 0), ("error_max_turns", True, 1)):
+            with self.subTest(subtype=subtype, is_error=is_error, exit_code=exit_code):
+                run = self.new_run("claude", "quick", "scout")
+                (run / "prompt.md").write_text("Locate source")
+                event = {"type": "result", "subtype": subtype, "is_error": is_error, "result": "Partial report"}
+                def child(command, **kwargs):
+                    kwargs["stdout"].write(json.dumps(event) + "\n")
+                    return exit_code
+                with patch.object(runtime.subprocess, "call", side_effect=child), redirect_stdout(io.StringIO()):
+                    self.assertEqual(runtime.main(["start", str(run)]), exit_code)
+                self.assertEqual((run / "final.md").read_text(), "Partial report")
+                summary = runtime.execution_summary(run)
+                self.assertEqual(summary["status"], "completed" if exit_code == 0 else "failed")
+                self.assertEqual(summary["exit_code"], exit_code)
+                self.assertEqual(summary["evidence_issues"], [f"Claude result reports subtype={subtype!r}, is_error={is_error!r}"])
 
     def test_dispatch_requires_live_freshness_but_reports_remain_available_offline(self):
         run = self.new_run()
@@ -292,6 +654,44 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(summary["peak_concurrency"], 2)
         self.assertTrue(summary["finished"])
         self.assertEqual(sorted(item["exit_code"] for item in summary["runs"]), [0, 7])
+
+    def test_batch_launches_read_only_claude_and_rejects_writable_roles(self):
+        runs = [self.new_run("claude", "standard", role) for role in ("scout", "reviewer")]
+        for run in runs:
+            (run / "prompt.md").write_text("Read source")
+        barrier = threading.Barrier(2, timeout=3)
+        def child(command, **kwargs):
+            self.assertEqual(command[0], "claude")
+            self.assertIn("--print", command)
+            self.assertIn(command[command.index("--agent") + 1], ("orch-scout-standard", "reviewer-standard"))
+            barrier.wait()
+            kwargs["stdout"].write(json.dumps({"type": "result", "subtype": "success", "is_error": False,
+                                               "result": "Read-only report", "usage": {}}) + "\n")
+            return 0
+        with patch.object(runtime.subprocess, "call", side_effect=child) as process, redirect_stdout(io.StringIO()):
+            self.assertEqual(runtime.main(["start-many", *map(str, runs), "--capacity", "2"]), 0)
+        self.assertEqual(process.call_count, 2)
+        for run in runs:
+            self.assertEqual((run / "final.md").read_text(), "Read-only report")
+            self.assertEqual(runtime.execution_summary(run)["exit_code"], 0)
+        for role in ("implementer", "verifier", "runner", "browser", "publisher"):
+            with self.subTest(role=role):
+                fresh = [self.new_run("claude", "standard", name) for name in ("scout", role)]
+                for run in fresh:
+                    (run / "prompt.md").write_text("Brief")
+                with patch.object(runtime.subprocess, "call") as process:
+                    with self.assertRaisesRegex(ValueError, "only read-only Claude roles"):
+                        runtime.main(["start-many", *map(str, fresh)])
+                    process.assert_not_called()
+
+    def test_batch_rejects_mixed_kinds_before_launch(self):
+        runs = [self.new_run("hybrid", "standard", role) for role in ("scout", "reviewer")]
+        for run in runs:
+            (run / "prompt.md").write_text("Read source")
+        with patch.object(runtime.subprocess, "call") as process:
+            with self.assertRaisesRegex(ValueError, "cannot mix claude and codex"):
+                runtime.main(["start-many", *map(str, runs)])
+            process.assert_not_called()
 
     def test_batch_rejects_invalid_ownership_or_family_before_launch(self):
         runs = [self.new_run(), self.new_run()]
@@ -466,12 +866,14 @@ if __name__ == "__main__":
 
 
 class GraphTests(unittest.TestCase):
+    DEFINITION = {"goal": "Two dependent slices", "capacity": 2, "tasks": [
+        {"id": "tax", "title": "Add tax", "scope": ["orders/tax.py", "tests/test_tax.py"],
+         "acceptance": ["Tax computes the requested rate"], "verify": ["python3 -m unittest -q"]},
+        {"id": "pricing", "title": "Use tax", "scope": ["orders/pricing.py"], "blocked_by": ["tax"],
+         "acceptance": ["Orders include tax"], "verify": ["python3 -m unittest -q"]}]}
+
     def setUp(self):
-        self.definition = {"goal": "Two dependent slices", "capacity": 2, "tasks": [
-            {"id": "tax", "title": "Add tax", "scope": ["orders/tax.py", "tests/test_tax.py"],
-             "acceptance": ["Tax computes the requested rate"], "verify": ["python3 -m unittest -q"]},
-            {"id": "pricing", "title": "Use tax", "scope": ["orders/pricing.py"], "blocked_by": ["tax"],
-             "acceptance": ["Orders include tax"], "verify": ["python3 -m unittest -q"]}]}
+        self.definition = json.loads(json.dumps(self.DEFINITION))
 
     def invoke(self, arguments, data=None):
         if arguments[0] == "resolve" and isinstance(data, dict):
@@ -490,6 +892,19 @@ class GraphTests(unittest.TestCase):
 
     def resolve(self, path, task, **fields):
         return self.invoke(["resolve", path, task], fields)
+
+    def test_sandbox_creates_plans_under_its_own_tmpdir_and_hook_accepts_them(self):
+        base, sandbox, stale = sandbox_layout(self, "orchestrator-plan-old", "plan.json")
+        with sandbox_view(base, sandbox):
+            path = Path(self.plan())
+        self.assertEqual(path.parent, sandbox)
+        script = 'python3 "$HOME/.agents/orchestrator-runtime.py"'
+        with temp_root(base):
+            self.assertEqual(runtime.run_path(path), path)
+            self.assertTrue(guard.coordination_command(script + f" claim {path} tax --owner worker-a", "orchestrator-claude"))
+            with self.assertRaisesRegex(ValueError, "expected a runtime-created temporary run directory"):
+                runtime.run_path(stale)
+            self.assertFalse(guard.coordination_command(script + f" claim {stale} tax --owner worker-a", "orchestrator-claude"))
 
     def test_dependencies_require_verified_reviewed_completion(self):
         path = self.plan()

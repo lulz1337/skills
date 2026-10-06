@@ -19,6 +19,55 @@ DENIED = {"Read", "Edit", "Write", "NotebookEdit", "MultiEdit", "Glob", "Grep"}
 ACTIVATE = re.compile(r"^[/$](orchestrator-(?:claude|codex|hybrid))(?=\s|$)")
 NATIVE_ACTIVATE = re.compile(r"(?<![\w$])\$(orchestrator-(?:claude|codex|hybrid))(?=\s|$)")
 RUNTIME = Path(__file__).resolve().parent / "orchestrator-runtime.py"
+# Subcommands that only read or write coordination files under the run root, which lives in the
+# sandbox TMPDIR. start, start-many and the herdr subcommands stay off: Codex cannot start inside
+# the Claude sandbox and applies each run's own sandbox mode. A deny-list keeps new subcommands usable.
+SANDBOXED_ACTIONS = {"instructions", "new", "plan", "graph", "claim", "bind", "resolve", "baseline",
+                     "summary", "brief", "report", "cleanup"}
+SANDBOX_REASON = ("The orchestrator runtime call '{action}' works inside the sandbox, because runs and plans "
+                  "live under the sandbox TMPDIR. Retry it without dangerouslyDisableSandbox. If it fails "
+                  "inside the sandbox, report the error to the user. Only start, start-many and the herdr "
+                  "subcommands may run with the sandbox disabled.")
+
+
+def runtime_paths():
+    return {str(RUNTIME), str(Path.home() / ".agents/orchestrator-runtime.py"),
+            "$HOME/.agents/orchestrator-runtime.py", "${HOME}/.agents/orchestrator-runtime.py",
+            "~/.agents/orchestrator-runtime.py"}
+
+
+def sandbox_bypass_action(command, inputs):
+    """Name the deny-listed runtime subcommand that asks to disable the sandbox, else None."""
+    if inputs.get("dangerouslyDisableSandbox") is not True:
+        return None
+    header = re.sub(r"\s+<<\s*'[A-Za-z_][A-Za-z_0-9]*'\s*$", "", command.strip().partition("\n")[0])
+    try:
+        args = shlex.split(header)
+    except ValueError:
+        return None
+    if len(args) >= 3 and args[0] == "python3" and args[1] in runtime_paths() and args[2] in SANDBOXED_ACTIONS:
+        return args[2]
+    if len(args) >= 4 and args[0] == "python3" and args[1] in runtime_paths() and args[2] in {"start", "start-many"}:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("orchestrator_runtime", RUNTIME)
+        runtime = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runtime)
+        try:
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                parsed = runtime.parser().parse_args(args[2:])
+            if getattr(parsed, "pane", None):
+                return None
+            for value in parsed.runs if hasattr(parsed, "runs") else [parsed.run]:
+                try:
+                    run = runtime.run_path(value)
+                    meta = json.loads(runtime.artifact(run, "run.json").read_text())
+                except (OSError, ValueError):
+                    continue
+                if isinstance(meta, dict) and meta.get("kind") == "claude":
+                    return args[2]
+        except (OSError, ValueError, SystemExit):
+            pass
+    return None
 
 
 def coordination_command(command, skill=None):
@@ -45,10 +94,7 @@ def coordination_command(command, skill=None):
     if len(args) < 3 or args[0] != "python3":
         return False
     script = args[1]
-    allowed_paths = {str(RUNTIME), str(Path.home() / ".agents/orchestrator-runtime.py"),
-                     "$HOME/.agents/orchestrator-runtime.py", "${HOME}/.agents/orchestrator-runtime.py",
-                     "~/.agents/orchestrator-runtime.py"}
-    if script not in allowed_paths:
+    if script not in runtime_paths():
         return False
     if "$" in " ".join(args[2:]) or args[2].startswith("-") and args[2] != "--help":
         return False
@@ -106,8 +152,8 @@ def routed_agent(skill, agent_type):
     if skill == "orchestrator-codex":
         return False  # Codex roles start through the runtime, never Claude Agent.
     if skill == "orchestrator-hybrid":
-        return bool(re.fullmatch(rf"reviewer-hybrid-{reviewed}|orch-sage-{mode}|orch-critic-{reviewed}", agent_type))
-    return bool(re.fullmatch(rf"worker-{mode}|reviewer-{reviewed}|orch-(?:scout|verifier|runner|researcher|browser|oracle|sage)-{mode}|orch-critic-{reviewed}", agent_type))
+        return bool(re.fullmatch(rf"reviewer-hybrid-{reviewed}|orch-(?:sage|publisher)-{mode}|orch-critic-{reviewed}", agent_type))
+    return bool(re.fullmatch(rf"worker-{mode}|reviewer-{reviewed}|orch-(?:scout|verifier|runner|researcher|browser|oracle|sage|publisher)-{mode}|orch-critic-{reviewed}", agent_type))
 
 
 def main(provider="claude"):
@@ -149,6 +195,13 @@ def main(provider="claude"):
     if provider == "codex" and tool in {"update_plan", "request_user_input"}:
         return 0
     wrong_family = tool in {"Agent", "Task"} and not routed_agent(policy["skill"], str(inputs.get("subagent_type", "")))
+    action = sandbox_bypass_action(str(inputs.get("command", "")), inputs) if tool == "Bash" else None
+    if action:
+        print(json.dumps({"hookSpecificOutput": {
+            "hookEventName": "PreToolUse", "permissionDecision": "deny",
+            "permissionDecisionReason": ("Claude runs stay inside the sandbox. Start this run without dangerouslyDisableSandbox."
+                                         if action in {"start", "start-many"} else SANDBOX_REASON.format(action=action))}}))
+        return 0
     if denied_tool(tool, inputs, policy["skill"]) or wrong_family:
         print(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse", "permissionDecision": "deny",

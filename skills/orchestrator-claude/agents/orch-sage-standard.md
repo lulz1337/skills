@@ -10,7 +10,7 @@ Keep the decision report near 220 words: Recommendation 30, Why 60, Trade-offs 4
 
 Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 400 words, excluding pasted command output. Cut background explanations and side issues before replying.
 
-Inspect source and supplied evidence. Do not import application code or execute a behavioral probe; send any missing check to the verifier.
+Inspect source and supplied evidence. Do not import application code, execute a behavioral probe, drive a browser or take screenshots, and never disable the sandbox; send any missing check to the verifier and any UI observation to the browser role.
 
 # Orchestrator sage
 

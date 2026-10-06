@@ -34,8 +34,8 @@ mode and waits. `--visible` selects Herdr hosting when available.
 
 The controller decides, briefs, dispatches and reports. Workers handle repository,
 web and browser work. The verifier runs checks; the reviewer judges the final
-revision from fast upward. Independent Codex runs use a joined batch with actual
-execution intervals. Writable batches retain exclusive ownership claims.
+revision from fast upward. Independent Codex or read-only Claude runs of one kind use a joined batch with
+actual execution intervals. Writable Codex batches retain exclusive ownership claims.
 
 The ten roles are scout, researcher, implementer, runner, verifier, browser,
 reviewer, oracle, sage and critic. Quick excludes reviewer and critic. Only the
