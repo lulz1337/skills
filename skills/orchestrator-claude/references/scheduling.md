@@ -4,10 +4,11 @@ Adapted from Matt Pocock's to-tickets and implement-spec. Use this for several
 slices with real dependencies, an integration step, or a retained plan. A
 settled single-scope task follows workflow.md without creating a graph.
 
-A task delivers one complete, independently verifiable behavior and fits a
-fresh worker context. Its blockers name only prerequisites that genuinely gate
-it. For a wide mechanical refactor, use expand, bounded migration batches and
-contract; claim green intermediate states only when the verifier observed them.
+A task delivers one bounded behavior and fits a fresh worker context. Its
+blockers name only prerequisites that genuinely gate its implementation. For a
+wide mechanical refactor, use expand, bounded migration batches and contract.
+Dependent writers may start after prerequisite implementation is handed off;
+verification is consolidated after all scoped implementation is stable.
 The runner owns authorized integration. Worktrees are optional; branches,
 commits, PRs and issue publication stay within existing authorization.
 
@@ -32,9 +33,10 @@ python3 "$HOME/.agents/orchestrator-runtime.py" graph /tmp/orchestrator-plan-EXA
 python3 "$HOME/.agents/orchestrator-runtime.py" claim /tmp/orchestrator-plan-EXAMPLE tax --owner tax-attempt-1
 ```
 
-Graph reports a **frontier**: pending tasks with completed blockers and available
-capacity/scope. Claim before dispatch; use the returned task's role, acceptance,
-scope and checks in its brief. Every graph-bound implementation brief also
+Graph reports a **frontier**: pending tasks with implemented or done blockers and available
+capacity/scope. Claim before dispatch; use the returned task's role, acceptance
+and scope in its brief. Collect its `verify` entries as candidates for the one
+task-wide check plan; the worker does not execute them. Every graph-bound brief also
 includes literal PLAN, TASK and ATTEMPT fields from its claim, so execution can
 be traced to that task and attempt. For Codex, create the run before claiming and
 use its run path as owner. After a Claude Agent dispatch returns its ID, bind it:
@@ -49,32 +51,41 @@ Resolutions and binding must match the current owner/attempt, so a delayed
 result cannot complete a newer retry. Claims are atomic. Dependent or overlapping tasks
 stay blocked until their owner is resolved; unrelated work may continue.
 
-## Complete a slice
+## Hand off implementation and complete the task
 
-The implementer reports stable work, then the verifier checks it. In a reviewed
-mode, request a fresh reviewer. Resolve only after each acceptance criterion is
-supported and accepted findings are fixed. Every fix after review needs new
-verification and a fresh reviewer before done, even when only a regression
-assertion changes. Keep the claim while fixing; bind the new owner only after
-the previous owner has stopped. If you release and reclaim, the new attempt
-needs its own verification and review. Earlier review cannot complete it:
+The implementer reports stable work and a proposed check plan. Release its scope
+with `implemented` so a dependent writer can claim it; keep owner and attempt
+provenance. This handoff is not graph completion and carries no check result:
 
 ```bash
 python3 "$HOME/.agents/orchestrator-runtime.py" resolve /tmp/orchestrator-plan-EXAMPLE tax <<'RESULT'
-{"status":"done","owner":"current-owner-from-graph","attempt":1,"evidence":"Worker report: each tax criterion accounted for","verification":"Verifier report: python3 -m unittest -q, exit 0","review":"Reviewer: no remaining accepted findings"}
+{"status":"implemented","owner":"current-owner-from-graph","attempt":1,"evidence":"Worker report: tax behavior implemented; proposed final check: python3 -m unittest -q"}
 RESULT
 ```
 
-Quick still requires verifier evidence but omits review. Evidence fields are
-coordination assertions: the helper checks their presence, not their truth.
-A process exit or implementation report alone does not complete a slice. Use
-status blocked with cited evidence when a prerequisite or check prevents
-completion. Recompute graph after each resolution; dispatch only its frontier.
+After all implementations are handed off, perform source review and focused
+fixes. If a finding reopens an implemented task, confirm its writer stopped,
+resolve it to `pending` with `stopped: true`, and claim a new attempt. Then run
+one consolidated, scoped verifier plan against final inputs.
+Each useful command runs once. Reuse successful receipts while relevant inputs
+are unchanged. After an observed failure, fix the cause and rerun only failed or
+affected checks. A narrow diagnostic during implementation is allowed only for
+an observed frontend error or backend log failure and must name both. Source
+review is not a check; docs-only/cosmetic edits require none unless repository
+rules do.
+
+Resolve each task `done` only after final verifier results and required review
+evidence exist. Evidence fields record those claims; the helper checks presence,
+not truth. Quick requires verifier evidence and omits independent review. Keep
+the claim while fixing; bind a new owner only after the previous owner stops.
+If reclaiming, preserve attempt provenance. Use `blocked` when a real blocker
+prevents implementation or verification.
 
 ## Resume after interruption
 
-Keep the returned plan path in the handoff. Load graph first: done tasks stay
-done, and running claims retain their owner. Time passing never releases a
+Keep the returned plan path in the handoff. Load graph first: done and
+implemented tasks retain their status and provenance, and running claims retain
+their owner. Time passing never releases a
 claim. Ask the owner or host for its status; capture current partial changes
 through a scout. Retry only after the old owner is confirmed stopped:
 

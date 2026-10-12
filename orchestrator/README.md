@@ -64,8 +64,12 @@ local tool hooks while orchestration is active; hosted tools remain governed by
 instructions. This guard is a workflow boundary, not a security sandbox.
 
 `start-many` joins independent Codex or read-only Claude executions of one kind
-and checks retained ownership for writable Codex batches. Reports preserve complete receipts, and `summary` reports
-actual intervals and usage. Worker configuration is isolated from host hooks.
+and checks retained ownership for writable Codex batches. Reports preserve
+complete execution receipts, including completed file changes, and `summary`
+reports actual intervals and usage. Multi-slice plans release `implemented`
+handoffs to unblock dependent work, then require consolidated final verification
+after all implementations are stable before tasks become `done`. Worker
+configuration is isolated from host hooks.
 Only the exact user message `orchestrator off` clears persistent orchestration.
 
 ## Verification

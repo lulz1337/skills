@@ -83,7 +83,7 @@ def execution_events(run):
 def execution_summary(run):
     events = execution_events(run)
     receipts = [event["item"] for event in events if event.get("type") == "item.completed"
-                and (event.get("item", {}).get("type") in {"command_execution", "mcp_tool_call", "web_search"}
+                and (event.get("item", {}).get("type") in {"command_execution", "mcp_tool_call", "web_search", "file_change"}
                      or "is_error" in event.get("item", {}))]
     usage = {}
     for event in events:
@@ -112,7 +112,7 @@ def execution_summary(run):
                       if isinstance(block, dict) and block.get("type") == "tool_use"}
     completed = {event.get("item", {}).get("id") for event in events if event.get("type") == "item.completed"}
     pending = [event["item"].get("id") for event in events if event.get("type") == "item.started"
-               and (event.get("item", {}).get("type") in {"command_execution", "mcp_tool_call", "web_search"}
+               and (event.get("item", {}).get("type") in {"command_execution", "mcp_tool_call", "web_search", "file_change"}
                     or event.get("item", {}).get("id") in claude_started)
                and event["item"].get("id") not in completed]
     if pending and (state.get("status") in {"completed", "failed", "interrupted"}
@@ -250,8 +250,10 @@ def start_many(args):
         if fields["kind"] == "claude":
             if meta["role"] not in READ_ONLY:
                 raise ValueError("dispatch this Claude agent with Agent; batch accepts only read-only Claude roles")
-        elif fields["kind"] != "codex" or fields["model_source"] != "live Codex model/list":
+        elif fields["kind"] != "codex":
             raise ValueError("batch requires Codex roles with fresh live model settings")
+        elif fields["model_source"] != "live Codex model/list":
+            raise ValueError(catalog_dispatch_error(fields["model_source"]))
         if artifact(run, "execution.json").exists() or artifact(run, "events.jsonl").exists():
             raise ValueError("batch contains a previously started run")
     writers = [(run, meta) for run, meta, _ in runs if meta["role"] in {"implementer", "runner"}]
@@ -288,14 +290,29 @@ def start_many(args):
     return 1 if any(result["exit_code"] != 0 or result.get("evidence_issues") for result in results) else 0
 
 
+def catalog_dispatch_error(source):
+    return ("Cannot verify the newest model from the live Codex catalog; dispatch stopped. "
+            f"{source}. Cached/profile metadata is available for inspection only. "
+            "If the reason mentions a read-only file system, no writable temp directory or a blocked network, the host session is sandboxed. "
+            "Codex workers run as child codex processes and need a host with full access "
+            "(no sandbox, network on); switch the host session to Full access "
+            "(IDE: the permissions control beneath the composer; CLI: /permissions) and retry, "
+            "instead of retrying in the same session.")
+
+
 def available_models():
     """Read the account's live Codex catalog without starting an inference turn."""
     global MODEL_CATALOG
     if MODEL_CATALOG is not None:
         return MODEL_CATALOG
+    errors = None
     try:
+        try:
+            errors = tempfile.TemporaryFile()
+        except OSError:
+            pass
         proc = subprocess.Popen(["codex", "app-server"], stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                                stdout=subprocess.PIPE, stderr=errors if errors is not None else subprocess.DEVNULL)
         try:
             with selectors.DefaultSelector() as selector:
                 selector.register(proc.stdout, selectors.EVENT_READ)
@@ -318,7 +335,9 @@ def available_models():
                             break
                         chunk = os.read(proc.stdout.fileno(), 65536)
                         if not chunk:
-                            break
+                            code = proc.poll()
+                            raise ValueError("codex app-server exited before a catalog response" +
+                                             (f" (exit code {code})" if code is not None else ""))
                         buffered += chunk
                     raise ValueError("Codex model catalog timed out")
 
@@ -343,18 +362,34 @@ def available_models():
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait(timeout=3)
-            proc.stdin.close()
             proc.stdout.close()
-    except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+            proc.stdin.close()
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+        reason = str(error)
+        if errors is not None:
+            errors.seek(0)
+            last_line = ""
+            for line in errors:
+                if line.strip():
+                    last_line = line.decode("utf-8", errors="replace").strip()
+            if last_line:
+                reason += "; stderr: " + last_line
+        else:
+            reason += "; stderr not captured: no writable temp directory"
+        reason = re.sub(r"[A-Za-z0-9_\-.]{32,}", "[redacted]", reason)
+        reason = " ".join(reason.split())[:300]
         cache = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "models_cache.json"
         try:
             data = json.loads(cache.read_text())
             models = [{"model": m["slug"], "hidden": m.get("visibility") == "hide",
                        "supportedReasoningEfforts": [{"reasoningEffort": e["effort"]} for e in m.get("supported_reasoning_levels", [])]}
                       for m in data["models"]]
-            MODEL_CATALOG = (models, "cached Codex catalog; live catalog unavailable")
+            MODEL_CATALOG = (models, "cached Codex catalog; live catalog unavailable: " + reason)
         except (OSError, ValueError, KeyError, TypeError):
-            MODEL_CATALOG = ([], "profile fallback; latest model unverified")
+            MODEL_CATALOG = ([], "profile fallback; latest model unverified: " + reason)
+    finally:
+        if errors is not None:
+            errors.close()
     return MODEL_CATALOG
 
 
@@ -374,7 +409,13 @@ def latest_model(fallback, effort):
         supported = {item.get("reasoningEffort") for item in model.get("supportedReasoningEfforts", [])}
         candidates.append((version(candidate[1]), slug, supported))
     if not candidates:
-        return fallback, "profile fallback; latest available model unverified"
+        label = "profile fallback; latest available model unverified"
+        if source == "live Codex model/list":
+            return fallback, label
+        elif source.startswith("profile fallback"):
+            return fallback, source
+        else:
+            return fallback, label + ": " + source
     _, model, supported = max(candidates, key=lambda item: item[0])
     if supported and effort not in supported:
         raise ValueError(f"newest {match[2]} model {model} does not support configured effort {effort}")
@@ -565,7 +606,7 @@ def ownership_scope(plan, task):
 def claim_blockers(plan, task):
     if task["status"] != "pending":
         return [f"status is {task['status']}"]
-    blockers = [name for name in task["blocked_by"] if plan["tasks"][name]["status"] != "done"]
+    blockers = [name for name in task["blocked_by"] if plan["tasks"][name]["status"] not in {"implemented", "done"}]
     running = [other for other in plan["tasks"].values() if other["status"] == "running"]
     reasons = [f"unfinished dependency: {name}" for name in blockers]
     if len(running) >= plan["capacity"]:
@@ -617,19 +658,34 @@ def graph_action(args):
             result = {"task": task["id"], "owner": task["owner"], "attempt": task["attempt"]}
         else:
             result = json.load(sys.stdin)
-            if not isinstance(result, dict) or result.get("status") not in {"done", "blocked", "pending"}:
-                raise ValueError("resolution status must be done, blocked or pending")
+            if not isinstance(result, dict) or result.get("status") not in {"implemented", "done", "blocked", "pending"}:
+                raise ValueError("resolution status must be implemented, done, blocked or pending")
             nonempty(result.get("evidence"), "resolution evidence")
             if result.get("owner") != task["owner"] or type(result.get("attempt")) is not int or result["attempt"] != task["attempt"]:
                 raise ValueError(f"resolution must match current owner {task['owner']} and attempt {task['attempt']}")
             if result["status"] == "pending":
-                if task["status"] not in {"running", "blocked"} or result.get("stopped") is not True:
+                if task["status"] not in {"running", "blocked", "implemented"} or result.get("stopped") is not True:
                     raise ValueError("retry requires an interrupted/blocked task and confirmation that its owner stopped")
                 task["owner"] = None
             else:
-                if task["status"] != "running":
+                allowed = {"running"}
+                if result["status"] in {"done", "blocked"}:
+                    allowed.add("implemented")
+                if task["status"] not in allowed:
                     raise ValueError("only a claimed task can be resolved")
                 if result["status"] == "done":
+                    # Legacy plans may complete each slice as they go. Once a
+                    # plan uses task-wide verification, however, every writer
+                    # must hand off before any task can become verified done.
+                    implementations = [
+                        other for other in plan["tasks"].values()
+                        if other.get("role", "implementer") == "implementer"
+                    ]
+                    if any(other["status"] == "implemented" for other in implementations) and any(
+                        other["status"] in {"pending", "running", "blocked"}
+                        for other in implementations
+                    ):
+                        raise ValueError("task-wide verification requires every implementation to be handed off first")
                     nonempty(result.get("verification"), "verifier evidence")
                     if plan["mode"] != "quick":
                         nonempty(result.get("review"), "review disposition")
@@ -801,6 +857,28 @@ def main(argv=None):
                 if event.get("type") in {"thread.started", "turn.completed", "turn.failed", "error"}:
                     print(json.dumps(event))
                 item = event.get("item") or {}
+                if event.get("type") == "item.completed" and item.get("type") == "file_change":
+                    changes = item.get("changes")
+                    if (item.get("status") == "completed"
+                            and isinstance(item.get("id"), str) and item["id"]
+                            and isinstance(changes, list) and changes
+                            and all(
+                                isinstance(change, dict)
+                                and isinstance(change.get("path"), str)
+                                and change["path"].strip()
+                                and isinstance(change.get("kind"), str)
+                                and change["kind"].strip()
+                                for change in changes
+                            )):
+                        print(json.dumps({
+                            "run": str(run), "role": meta["role"],
+                            "receipt_id": item["id"], "status": item["status"],
+                            "file_changes": [
+                                {"path": change["path"], "kind": change["kind"]}
+                                for change in changes
+                            ],
+                        }))
+                    continue
                 if event.get("type") == "item.completed" and (item.get("type") == "command_execution" or "is_error" in item):
                     key = "verifier_command" if meta["role"] == "verifier" else "worker_command"
                     output = str(item.get("aggregated_output", ""))
@@ -814,7 +892,7 @@ def main(argv=None):
     elif args.action == "start":
         artifact(run, "prompt.md").resolve(strict=True)
         if fields["kind"] == "codex" and fields["model_source"] != "live Codex model/list":
-            raise ValueError("Cannot verify the newest model from the live Codex catalog; dispatch stopped. Cached/profile metadata is available for inspection only.")
+            raise ValueError(catalog_dispatch_error(fields["model_source"]))
         if args.pane:
             if not visible_available():
                 raise ValueError("Herdr is not hosting this session")

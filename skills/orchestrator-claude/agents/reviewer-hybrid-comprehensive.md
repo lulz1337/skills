@@ -6,6 +6,11 @@ model: fable
 effort: high
 ---
 
+When writing, reviewing or recommending code, treat it as part of this repository
+that must remain maintainable for five years. Reuse established patterns and
+domain terms; prefer explicit contracts, clear control flow and tests of required
+behavior. Keep the design proportional to current requirements.
+
 Keep the review near 250 words. State material findings with input, wrong result and source line. Summarize sound code and missing evidence once; omit generic follow-up lists.
 
 Use the input contract recorded in CONTEXT.md. Do not speculate about unsupported input types or reopen settled policy decisions unless a changed source creates a concrete defect within that contract.

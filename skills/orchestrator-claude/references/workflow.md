@@ -43,6 +43,8 @@ OUTPUT: changed paths or findings, evidence and remaining uncertainty
 VERIFY: exact affected commands and expected outcomes; verifier executes them
 ```
 
+Include the five-year code-maintainability requirement from roles.md in the
+CONSTRAINTS of every brief that writes, reviews or recommends code.
 Keep durable requirements in the acceptance criteria. A scout supplies current
 paths for dispatch ownership. Workers preserve user edits and one another's
 changes. Commits, pushes and external publication require existing authorization.
@@ -60,14 +62,18 @@ apply to the task; the verifier executes them. Verifier briefs name the exact ch
 and exclude unrelated suites. Briefing is done when one owner can satisfy each
 criterion within its scope.
 
-## 3. Implement
+## 3. Implement and review the source
 
 Give each writable file to one running worker. For dependent slices or retained state, follow scheduling.md.
 Concurrent work needs independent
-outcomes and disjoint scopes; honor host capacity, at most nine. The implementer
-returns stable edits, affected verification commands and any remaining defects.
-This phase is done when writers have stopped and the claimed behavior is ready
-for verification. A report alone does not establish that it works.
+outcomes and disjoint scopes; honor host capacity, at most nine. Each implementer
+returns stable edits and one consolidated, scoped check plan. Do not run checks
+during implementation. For dependent slices, record an `implemented` handoff so
+a downstream writer can start; it releases ownership without marking the graph
+complete or claiming verification. After every writer stops, review the final
+source against the request and required behavior/contracts, resolve accepted
+findings with focused edits, and collect fresh source review. This phase ends
+when all scoped implementation and source fixes are stable.
 
 For independent Codex or read-only Claude runs, use one `start-many <run-a> <run-b> --capacity 2`
 call. It waits for every execution and reports each exit code. Writable batches
@@ -77,10 +83,19 @@ model response. For writable Claude roles and publisher use independent Agent
 calls with background dispatch in an interactive host, then collect every result. Only claim concurrency when
 execution intervals overlap; an unavailable concurrent host is a stated limit.
 
-## 4. Verify and review
+## 4. Final verification
 
-The verifier runs exact affected checks and reports commands, exit codes and
-relevant output. Choose YAML/Compose validation for configuration changes;
+Only after all writers and source review/fixes are complete, the verifier runs
+the consolidated check plan once against final inputs and reports commands,
+exit codes and relevant output. Run each useful command once; add no checks
+beyond task scope or repository requirements. Preserve a successful receipt
+while its relevant source, tests, configuration, dependencies and environment
+inputs are unchanged. After an observed final failure, make a focused fix and
+rerun only failed or affected checks. An observed frontend error or backend log
+failure may justify one named, narrowly scoped diagnostic during implementation;
+record the error and diagnostic explicitly. Local/source-only review is not a
+check. Docs-only and cosmetic edits need no checks unless repository rules do.
+Choose YAML/Compose validation for configuration changes;
 run Python unit tests or typechecks only when the changed code or a repository
 rule requires them. Apply repository rules to the paths and conditions they
 name; a rule for orders/ or tests/ does not apply to docker-compose.yml.
@@ -88,21 +103,20 @@ Explicit user constraints take precedence. An
 end-to-end test needs an exact user-requested scenario and permitted environment.
 Re-check the exact reproduced input after a fix.
 Send failed checks to the implementer; use oracle after a failed fix attempt.
-Rerun only failed or affected checks.
 
-Quick finishes after verification with no reviewer or critic. Other modes use a
-fresh reviewer to inspect the stable diff against the request, baseline and
-verifier evidence. Add critic for shared code, CI, auth or money. Reviewers and
-critics use verifier results rather than running checks. Resolve factual disputes
+Quick has no independent reviewer. Other modes use a fresh source reviewer
+before final verification to inspect the stable diff against the request,
+baseline and required behavior/contracts; the author's narrative is optional.
+Add critic for shared code, CI, auth or money. Reviewers and critics do not run
+checks. Resolve factual disputes
 through workers; adjudicate each finding against scope and cited evidence.
 Decide each finding on its own: accept it with a reason, reject it with a
 reason, or settle the fact through a worker. Check each accepted fix against
 earlier accepted fixes and user-approved decisions.
-This phase is done when checks pass or their limitation is explicit, accepted
-findings are fixed, and material fixes have been re-verified and reviewed.
-After any material fix to reviewed work, give a fresh reviewer the final
-revision and new verification evidence. Earlier approval cannot cover later
-edits. Do not replace factual review with heading, word-count or keyword checks.
+Final completion requires observed verifier results and required review
+evidence. A material fix after final verification invalidates affected receipts;
+rerun only affected checks and refresh source review. Do not replace factual
+review with heading, word-count or keyword checks.
 When the second review of the same slice still reports a blocking finding, stop
 the fix loop. Give oracle the findings and fix history to find a cause, and tell
 the user that the slice is stuck, with the open findings.

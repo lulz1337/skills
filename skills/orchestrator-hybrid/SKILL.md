@@ -31,8 +31,9 @@ invocation or the user's exact `orchestrator off` message.
 | `standard` | `profiles/standard.md` | `reviewer-hybrid-standard` | the default: implementation needs judgment |
 | `comprehensive` | `profiles/comprehensive.md` | `reviewer-hybrid-comprehensive` | work where a missed defect is expensive |
 
-Quick uses discovery, one implementation scope and verification, with no reviewer
-or critic. Specialist roles are chosen for an actual question or outcome.
+Every mode finishes scoped implementation and source review/fixes before final
+verification. Quick has no independent reviewer. Specialist roles are chosen
+for an actual question or outcome.
 
 ## Load coordination instructions
 

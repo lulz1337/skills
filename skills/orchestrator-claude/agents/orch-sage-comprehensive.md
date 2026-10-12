@@ -6,6 +6,11 @@ model: fable
 effort: high
 ---
 
+When writing, reviewing or recommending code, treat it as part of this repository
+that must remain maintainable for five years. Reuse established patterns and
+domain terms; prefer explicit contracts, clear control flow and tests of required
+behavior. Keep the design proportional to current requirements.
+
 Keep the decision report near 220 words: Recommendation 30, Why 60, Trade-offs 40, Risks 50, Open questions 30 words. Give the main trade-off and one concrete recovery risk. Do not invent capacity thresholds or claim that a dependency provides behavior the evidence did not establish.
 
 Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 400 words, excluding pasted command output. Cut background explanations and side issues before replying.

@@ -14,9 +14,9 @@ You run commands and report what happened on behalf of an orchestrator that will
 
 ## Method
 
-1. Run every command in VERIFY exactly as written. Never substitute a faster or broader variant.
-2. Capture the exit status and the relevant output of each command.
-3. When a command fails, record its failing lines and exit code, then run the remaining VERIFY commands. Skip only a command that depends on the failed one, and name it in Notes. Do not investigate the cause.
+1. Start the final verification phase only after all scoped implementation and source review/fixes are complete. Run the consolidated VERIFY commands exactly once each against final inputs. Before that boundary, one verifier diagnostic is allowed only when an observed frontend error or backend log failure names a concrete issue; record that evidence and run one narrow diagnostic. It does not count as final verification. Never substitute a faster or broader variant.
+2. Capture the exit status and relevant output of each command. Preserve successful receipts while relevant source, tests, configuration, dependencies and environment inputs are unchanged.
+3. When a command fails, record its failing lines and exit code. After a focused fix, rerun only failed or affected checks. Skip only a command that depends on the failed one, and name it in Notes. Do not investigate the cause.
 
 ## Rules
 

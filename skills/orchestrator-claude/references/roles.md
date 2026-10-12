@@ -5,6 +5,11 @@ Adapted from martinslaby70/agents-skills, `skills/orchestrator/SKILL.md` and
 replace upstream's private gateway IDs. The orchestrator is always the main
 thread. Workers never inherit its coordination role or delegate further.
 
+When writing, reviewing or recommending code, treat it as part of this repository
+that must remain maintainable for five years. Reuse established patterns and
+domain terms; prefer explicit contracts, clear control flow and tests of required
+behavior. Keep the design proportional to current requirements.
+
 | Role | Contract | Route when |
 | --- | --- | --- |
 | scout | Locate files, symbols, call sites; return path:line evidence | Any repository lookup, baseline instructions or stable diff |
@@ -39,8 +44,8 @@ review uses `reviewer-hybrid-<mode>`, and sage, critic and publisher use Claude
 `orch-<role>-<mode>`. Publisher uses Sonnet medium in every mode and is unavailable
 to the codex family. Thus hybrid critique can come from another model family.
 Claude uses latest-family aliases (Sonnet for closed contracts, Opus for
-implementation, Fable for the strongest reasoning roles). Codex queries its live
-model/list catalog and selects the newest visible version in the configured GPT
+implementation and standard reasoning, Fable for reasoning in other modes).
+Codex queries its live model/list catalog and selects the newest visible version in the configured GPT
 tier, with gpt-6.1-sol as the minimum Sol version. The runtime reports live, cached
 or fallback metadata; cache and fallback cannot prove the latest release and
 are never used for dispatch. A Codex start requires a fresh live catalog. No private gateway,

@@ -284,6 +284,23 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(runtime.latest_model("gpt-6.1-sol", "medium")[0], "gpt-6.1-sol")
             self.assertIn("unverified", runtime.latest_model("gpt-6.1-sol", "medium")[1])
 
+    def test_live_catalog_failure_keeps_app_server_stderr(self):
+        self.catalog.stop()
+        runtime.MODEL_CATALOG = None
+        self.addCleanup(setattr, runtime, "MODEL_CATALOG", None)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            codex = root / "codex"
+            codex.write_text("#!/bin/sh\nprintf '%s\\n' 'Error: Read-only file system (os error 30)' >&2\nexit 1\n")
+            codex.chmod(0o755)
+            home = root / "home"
+            home.mkdir()
+            with patch.dict(os.environ, {"PATH": str(root) + os.pathsep + os.environ.get("PATH", ""), "CODEX_HOME": str(home)}):
+                models, source = runtime.available_models()
+                self.assertEqual(models, [])
+                self.assertTrue(source.startswith("profile fallback; latest model unverified"))
+                self.assertIn("Read-only file system", source)
+
     def test_codex_runners_use_current_sol_in_every_mode_after_state_report_failures(self):
         for family in ('codex','hybrid'):
             for mode in runtime.MODES:
@@ -612,6 +629,57 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(homes)
         self.assertTrue(all(not home.exists() for home in homes))
 
+    def test_report_projects_codex_file_changes_and_tracks_terminal_receipts(self):
+        # Shape observed in orchestrator-rap5bds7/events.jsonl, item_13.
+        # Only the affected path is replaced with a test-owned path.
+        for status in ("completed", "failed", None):
+            with self.subTest(status=status):
+                run = self.new_run(role="implementer")
+                path = str(run / "orders" / "tax.py")
+                started = {
+                    "type": "item.started",
+                    "item": {
+                        "id": "item_13", "type": "file_change",
+                        "changes": [{"path": path, "kind": "update"}],
+                        "status": "in_progress",
+                    },
+                }
+                events = [started]
+                if status is not None:
+                    events.append({
+                        "type": "item.completed",
+                        "item": {**started["item"], "status": status},
+                    })
+                (run / "events.jsonl").write_text(
+                    "".join(json.dumps(event) + "\n" for event in events)
+                )
+                (run / "execution.json").write_text(
+                    json.dumps({"status": "completed"})
+                )
+                with redirect_stdout(io.StringIO()) as output:
+                    result = runtime.main(["report", str(run)])
+                records = [
+                    json.loads(line) for line in output.getvalue().splitlines()
+                ]
+                projected = [
+                    record for record in records if "file_changes" in record
+                ]
+                expected = [{
+                    "run": str(run), "role": "implementer",
+                    "receipt_id": "item_13", "status": "completed",
+                    "file_changes": [{"path": path, "kind": "update"}],
+                }] if status == "completed" else []
+                self.assertEqual(projected, expected)
+                summary = records[-1]["execution_summary"]
+                self.assertEqual(result, 1 if status is None else 0)
+                self.assertEqual(
+                    summary["completed_receipts"], 0 if status is None else 1,
+                )
+                self.assertEqual(
+                    summary["pending_receipt_ids"],
+                    ["item_13"] if status is None else [],
+                )
+
     def test_reports_expose_commands_for_verifier_and_other_roles(self):
         for role, key in (("verifier", "verifier_command"), ("implementer", "worker_command")):
             with self.subTest(role=role):
@@ -923,6 +991,68 @@ class GraphTests(unittest.TestCase):
         self.assertTrue(self.invoke(["graph", path])["complete"])
         with self.assertRaisesRegex(ValueError, "status is done"):
             self.invoke(["claim", path, "tax", "--owner", "duplicate"])
+
+    def test_implemented_handoff_releases_dependency_without_completing_graph(self):
+        path = self.plan()
+        self.invoke(["claim", path, "tax", "--owner", "worker-a"])
+        self.resolve(path, "tax", status="implemented", evidence="Tax code and test are stable")
+        graph = self.invoke(["graph", path])
+        self.assertEqual(graph["frontier"], ["pricing"])
+        self.assertFalse(graph["complete"])
+        tax = next(task for task in graph["tasks"] if task["id"] == "tax")
+        self.assertEqual((tax["status"], tax["owner"], tax["attempt"]), ("implemented", "worker-a", 1))
+        self.invoke(["claim", path, "pricing", "--owner", "worker-b"])
+        with self.assertRaisesRegex(ValueError, "every implementation"):
+            self.resolve(path, "tax", status="done", evidence="Verified tax", verification="exit 0", review="Accepted")
+        self.resolve(path, "pricing", status="implemented", evidence="Totals code and test are stable")
+        self.resolve(path, "tax", status="done", evidence="Verified tax", verification="final verifier exit 0", review="Accepted")
+        self.assertFalse(self.invoke(["graph", path])["complete"])
+        self.resolve(path, "pricing", status="done", evidence="Verified totals", verification="final verifier exit 0", review="Accepted")
+        self.assertTrue(self.invoke(["graph", path])["complete"])
+
+    def test_pending_runner_does_not_block_implementation_readiness(self):
+        self.definition["tasks"].append({
+            "id": "publish", "title": "Publish", "role": "runner",
+            "scope": ["NOTES.md"], "blocked_by": ["pricing"],
+            "acceptance": ["Publication recorded"], "verify": ["Review result"],
+        })
+        path = self.plan()
+        for task in ("tax", "pricing"):
+            self.invoke(["claim", path, task, "--owner", task])
+            self.resolve(path, task, status="implemented", evidence="Stable source")
+        for task in ("tax", "pricing"):
+            self.resolve(path, task, status="done", evidence="Accepted",
+                         verification="Final verifier exit 0", review="Accepted")
+        self.assertFalse(self.invoke(["graph", path])["complete"])
+        self.invoke(["claim", path, "publish", "--owner", "publisher"])
+        self.resolve(path, "publish", status="done", evidence="Published",
+                     verification="Publication verified", review="Accepted")
+        self.assertTrue(self.invoke(["graph", path])["complete"])
+
+    def test_handoff_resolution_keeps_identity_evidence_and_retry_guards(self):
+        path = self.plan()
+        self.invoke(["claim", path, "tax", "--owner", "worker-a"])
+        self.resolve(path, "tax", status="implemented", evidence="Stable tax")
+        self.invoke(["claim", path, "pricing", "--owner", "worker-b"])
+        self.resolve(path, "pricing", status="implemented", evidence="Stable totals")
+        valid = dict(status="done", evidence="Accepted behavior",
+                     verification="Final verifier exit 0", review="Accepted")
+        for changed in (
+            {"owner": "other"}, {"attempt": 2}, {"attempt": True},
+            {"evidence": ""}, {"verification": ""}, {"review": ""},
+        ):
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                self.resolve(path, "tax", **{**valid, **changed})
+        self.resolve(path, "tax", status="blocked", evidence="Final check failed")
+        with self.assertRaises(ValueError):
+            self.resolve(path, "tax", status="pending", evidence="Retry")
+        self.resolve(path, "tax", status="pending", stopped=True, evidence="Owner stopped")
+        claimed = self.invoke(["claim", path, "tax", "--owner", "repair"])
+        self.assertEqual(claimed["attempt"], 2)
+        self.resolve(path, "tax", status="implemented", evidence="Repair handed off")
+        self.resolve(path, "tax", **valid)
+        self.resolve(path, "pricing", **valid)
+        self.assertTrue(self.invoke(["graph", path])["complete"])
 
     def test_quick_completion_needs_verifier_but_no_reviewer(self):
         path = self.plan("quick")

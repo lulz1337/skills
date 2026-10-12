@@ -15,6 +15,11 @@ notifies this conversation on completion; a one-shot host waits for the result.
 Independent starts may be separate concurrent tool calls.
 
 Dispatch requires the live catalog. Completed reports remain readable offline.
+The Codex host session itself needs full access (no sandbox, network on), because
+the catalog query and every worker run a child `codex`; when the runtime reports
+a read-only file system or blocked network, stop and ask the user to switch the
+session to Full access (IDE: the permissions control beneath the composer; CLI:
+/permissions).
 If the Caveman proxy cannot start, `start <run> --bypass-caveman` is available;
 disclose automatic or explicit bypasses. Retain evidence through review, then
 `cleanup <run>`. Writable runtime output does not authorize edits beyond SCOPE.

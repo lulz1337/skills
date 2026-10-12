@@ -35,15 +35,14 @@ files, accepted names, acceptance criteria and exclusions. Say explicitly that
 other workers and the user's existing edits must be preserved. Independent
 files can be implemented concurrently; overlapping writes run sequentially.
 
-When implementer finishes, brief verifier with the exact affected commands and
-expected exit code 0. A failing command returns its exit code and relevant error
-lines. Implementer fixes an accepted defect; verifier reruns the affected check.
-Do not ask implementer, reviewer or the main thread to rerun it too.
-
-In fast and higher modes, brief a fresh reviewer with the request, baseline,
-implementation report, verifier evidence and source paths. The reviewer captures
-the stable diff itself. Accept concrete failures and explain rejected findings.
-A shared-code change gets critic; oracle gets a failure only after a fix failed.
+After all writers stop, review the final source against the request and
+behavioral contracts in fast and higher modes. Resolve accepted findings with
+focused edits, then collect a fresh source review. Quick skips independent
+review. Once implementation and source review are stable, brief the verifier
+with one consolidated, scope-matched command list. It runs each useful command
+once and reports exit codes and output. After a final failure, rerun only failed
+or affected checks after the focused fix. A shared-code change gets critic;
+oracle gets a failure only after a fix failed.
 
 ## Codex process or a visible role
 
