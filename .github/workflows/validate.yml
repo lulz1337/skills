@@ -28,6 +28,8 @@ jobs:
             echo "Running $validator"
             python3 "$validator"
           done
+      - name: Verify video presentation renderer
+        run: python3 skills/video-proof/scripts/render.py --self-check
       - name: Verify Agent Skills discovery
         run: npx --yes skills@1.5.20 add . --list
       - name: Validate Claude Code marketplace

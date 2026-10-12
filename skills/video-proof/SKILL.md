@@ -1,427 +1,182 @@
 ---
 name: video-proof
-description: Record and deliver an agent-browser video that demonstrates a completed bug fix or small user story. Use only when the user explicitly asks for a video, recording, or video proof of completed work, including when the request appears at the start of the task. Do not use for ordinary testing or screenshot-only requests.
+description: Record and deliver a narrated feature walkthrough of completed work, with a female English voice, bottom subtitles, changed-field highlights, and visible clicks. Use when the user explicitly requests a feature demo, video, recording, or video proof, including at the start of an implementation task. Do not use for ordinary testing or screenshot-only requests.
 license: MIT
 metadata:
-  version: "2.0.0"
+  version: "3.0.0"
 ---
 
 # Video Proof
 
-Create a short, trustworthy video demonstration after the requested implementation
-and its relevant checks are complete. The video supplements tests; it does not
-replace them.
+Present the finished change through the real application: the starting situation,
+the complete user scenario, and the verified result. The default is a smooth
+video with a female English voice, small bottom subtitles, highlights on every
+changed section or field, and a visible pointer and ripple on every click.
+Preserve an explicit request for another language, voice, or a silent recording.
+The video supplements tests; a polished presentation still needs evidence.
+For an explicitly silent video, skip speech/caption gates and compose highlights
+on the raw capture with FFmpeg; the bundled renderer requires narrated scenes.
 
-The browser is `agent-browser`: its own Chrome, driven one command at a time,
-recorded with `agent-browser record`. It needs no browser extension and no
-permission prompt, so the user does not have to do anything for the recording
-to start.
+## Establish coverage and prerequisites
 
-## Load agent-browser and preflight early
+Read the task, acceptance criteria, project instructions, applicable `CONTEXT.md`,
+and the implementation diff, including new files. Identify the comparison base
+from the task or branch; `HEAD` alone may not contain the whole change. Separate
+unrelated user edits from this task.
 
-Before the first agent-browser command:
+Make a coverage table in a private temporary directory outside repositories:
 
-1. Run `agent-browser skills get core --full` and read its complete output. Do
-   not truncate it. It is version-matched to the installed CLI.
-2. Pick one session name for the whole proof, for example
-   `video-proof-<short-random-id>`, and pass `--session <name>` to every
-   command. A named session never touches the default session or another
-   agent's browser.
-3. Do not use `playwriter`, `terminal-browser`, or `--auto-connect` to drive the
-   recording. The first two are other browsers; `--auto-connect` drives the
-   user's own Chrome, which can show personal tabs and data.
+| Change / criterion | Initial state and action | Visible result | Scene / highlight | Other verification |
+| --- | --- | --- | --- | --- |
 
-Check the recording prerequisites early, even when the user requests the video at
-the start of a larger task:
+Account for **every task change**, not only the headline feature. Each changed
+field and section needs an identifiable highlighted moment. Group changes into
+the user's workflow rather than narrating filenames. Cover validation, empty/error
+states, persistence, and responsive layouts when changed. Exercise the original
+bug trigger against the fixed app. Describe historical behavior only when
+supported by evidence; an old-version recording is optional.
 
-- Run `agent-browser doctor` and read its Recording line. `record` pipes frames
-  into `ffmpeg`, so a missing `ffmpeg` is a blocker.
-- Choose the container from the encoders the installed ffmpeg has:
+Internal changes get a concise narration beat and a named check. Label them as
+verified by that check, or unverified. Browser footage alone cannot establish
+database state, authorization boundaries, or performance. Keep failing or
+unreachable criteria open; a complete presentation cannot conceal them.
 
-  ```bash
-  ffmpeg -hide_banner -encoders 2>/dev/null | grep -qw libx264 && ext=mp4
-  [ -n "${ext:-}" ] || { ffmpeg -hide_banner -encoders 2>/dev/null | grep -qw libvpx && ext=webm; }
-  ```
+Before browser work, read `agent-browser --help` and its installed core guide
+(`agent-browser skills get core`). Consult `record --help` for capture details.
+Use one named `--session video-proof-<id>` throughout, including cleanup. Record
+in its private Chrome, without auto-connect, profile reuse, or personal tabs.
 
-  Prefer `.mp4` (H.264), because it plays everywhere, including QuickTime. Use
-  `.webm` (VP8) when ffmpeg has no libx264, as with Fedora's `ffmpeg-free`. If
-  neither encoder exists, stop and report it.
-- Prove that capture works: create a private temporary directory outside every
-  repository, open the target application in the session, run
-  `record start <tmpdir>/probe.<ext>`, wait about one second, run `record stop`,
-  and check the probe with `ffprobe` (see "Validate the artifact"). Then delete
-  only that probe directory. `doctor` alone does not prove that a frame reaches
-  the file.
-- If ffmpeg is missing, tell the user immediately and ask only for the minimum
-  action: install it with the machine's package manager (for example
-  `brew install ffmpeg`, `sudo dnf install ffmpeg-free`, or
-  `sudo apt install ffmpeg`), then say when it is done.
-- Continue implementation and non-video verification while the user fixes the
-  prerequisite, when that is practical.
+Read [production.md](references/production.md) before generating speech or the
+timeline. Resolve helpers from this skill's directory, not the target app. Check
+`agent-browser doctor`, FFmpeg video/audio encoders, `ffprobe`, the `subtitles`
+filter, and a speech provider for the requested voice/language. Prefer installed tools. Resolve
+missing prerequisites within existing authorization or report the exact blocker
+while continuing independent work. Do not silently substitute a silent,
+uncaptioned, or incomplete video.
 
-Do not save or present the probe. Do not start the final recording during
-preflight.
+Prove the pipeline with a disposable capture and voice sample: composite a
+subtitle and highlight, probe both streams, decode, inspect a frame, and listen.
+Delete the probe. Tool inventory alone is not capture proof.
 
-## Derive the proof scenario
+## Use the finished build
 
-Read the ticket, acceptance criteria, project instructions, and relevant
-`CONTEXT.md` files.
+Record the target worktree, HEAD, branch, and working-tree status. Run the
+project's checks and documented build/start procedure there after the last source
+change. Use project-supported fixtures and a test account. Record the start
+command, process ID, directory, port, and build evidence; verify that the browser
+reaches this process. Choose another port instead of stopping an unrelated server.
+A deployed URL needs equivalent provenance.
 
-Create a small internal proof matrix with one row per acceptance criterion:
+Rebuild stale bundles and restart task-owned processes when needed. Source changes
+after recording invalidate affected proof: rerun its checks and rerecord it.
+Uncertain build provenance means the recording cannot be called proof.
 
-- criterion;
-- initial visible state;
-- decisive user action;
-- expected visible result;
-- evidence method: video, automated check, or both.
+Authenticate and prepare initial data before capture. Keep credentials, cookies,
+real customer data, notifications, and personal information out of frames and
+narration. Follow the environment's authorized authentication method. Exporting
+personal SSO state needs consent unless already authorized; any export stays in
+the private temporary directory and is deleted during cleanup.
 
-The recorded scenario must contain:
+## Script and rehearse
 
-1. The relevant initial state.
-2. The shortest sequence of real user actions that exercises the behavior.
-3. A stable, readable view of the expected result.
+Write scene beats as **context → action → visible result**. Open on the useful
+screen with one sentence explaining the change. End on the demonstrated outcome.
+Add scenes for other workflow steps or branches. Length follows complete coverage;
+never drop changes to meet an arbitrary duration.
 
-For a bug, reproduce the original triggering situation against the fixed
-application. Demonstrate that the same trigger now produces the correct result.
-Do not manufacture a separate, easier scenario that avoids the bug.
+Narrate concrete behavior: "Saving now shows a confirmation and keeps your entries."
+Read product labels exactly and explain why a result matters. Use a calm female
+voice around 130–160 words per minute. Keep sentences short; remove filler, sales
+language, generic praise, and unsupported claims. Speak about the product, not the
+automation. Keep one voice, accent, and level. Music, effects, and an avatar are
+absent unless requested.
 
-Mark criteria that cannot be established by a browser video, such as persistence
-after a backend restart, authorization boundaries, database state, performance,
-or an internal API contract. Verify them with suitable tests or diagnostics and
-list them separately in the final report. Never treat the video as a substitute
-for those checks.
+Generate speech and its actual timestamps before the final take. Pace actions and
+holds against them. Captions reflect the spoken words, with standard product
+spelling. Listen for names, numbers, acronyms, and pronunciation. New audio
+invalidates old timings.
 
-## Run the correct application
+Rehearse the whole scenario. Use a consistent viewport, preferably 1280×720 or
+1920×1080, and readable UI. Record 30 fps; use 60 only when motion needs it.
+Use `--input-mode smooth` for pointer movement. Check scrolling in rehearsal:
+ease with native support where available, otherwise use small increments rather
+than a large jump. Keep context visible around highlighted fields.
 
-Identify the target project's Git worktree and application start procedure from
-its own documentation and existing scripts.
+## Capture real actions and direct attention
 
-Before starting the application, record:
-
-```bash
-git rev-parse --show-toplevel
-git rev-parse HEAD
-git symbolic-ref --quiet --short HEAD || true
-git status --short
-```
-
-Run build, migration, seed, and start commands from that exact worktree. Use
-project-supported test data or fixtures only when they represent the acceptance
-environment honestly.
-
-After the last source change:
-
-1. Run the relevant automated checks.
-2. Rebuild or restart anything that could contain an older bundle.
-3. Start a new application process from the target worktree.
-4. Prefer a new, known port instead of reusing an unidentified server.
-5. Record the command, process identifier, working directory, port, and build
-   output needed to connect the running application to the current worktree.
-6. Verify that the browser URL reaches that process and not an old server,
-   another worktree, or a previously built deployment.
-
-Do not stop or replace an unrelated process merely because it occupies the usual
-port. Choose another port or report the conflict.
-
-If the current build cannot be tied to the current worktree with reasonable
-evidence, do not record it as proof.
-
-Any source change after recording invalidates the video. Run the relevant checks
-again and record a new proof.
-
-## Prepare the browser session
-
-Prepare authentication, test data, and the initial application state before
-recording:
-
-- Set a 16:9 viewport so the video has a predictable size:
-  `agent-browser --session <name> set viewport 1280 720`.
-- Log in with a project test account, typed into the real login form or through
-  `agent-browser auth login`. Never record a login that shows real credentials.
-- When the application accepts only the user's own SSO session, ask the user
-  first. With consent, export that state once to a file in the private temporary
-  directory with `agent-browser --auto-connect state save <tmpdir>/auth.json`,
-  load it with `state load`, and delete the file after the proof. Treat the file
-  as a secret: it holds session cookies. Never write it inside a repository.
-- Make sure the page shows no secrets, notifications, unrelated personal
-  information, production customer data, or other sensitive content.
-
-## Record the final demonstration
-
-Record into the private temporary directory, never directly into the target
-repository. A failed take then never touches the repository, and only a
-validated video is copied into `docs/videos/` (see "Deliver into the
-repository").
+Prefer one continuous successful scenario:
 
 ```bash
-agent-browser --session <name> record start "<tmpdir>/take.<ext>" --cursor --contact-sheet
+agent-browser --session <name> --input-mode smooth record start \
+  "<tmpdir>/take.<mp4-or-webm>" --cursor --contact-sheet
 ```
 
-`--cursor` draws the pointer and click ripple into the video; Chrome's screencast
-does not show the native pointer. `--contact-sheet` writes a timestamped PNG of
-the distinct visual changes beside the video, which the validation step uses.
-Keep the default 30 fps unless the scenario is a drag or an animation (then 60).
-Keep audio out of the proof unless the user explicitly asks for it.
-
-Note the start time (`date +%s`) so each checkpoint can be given as elapsed
-seconds.
-
-After recording starts:
-
-- Leave the initial state visible for about two seconds (`wait 2000`).
-- Act through user-level commands on refs from a fresh `snapshot -i`: `click`,
-  `fill`, `type`, `press`, `select`, `check`, `hover`, `drag`, `upload`,
-  `scroll`. Re-snapshot after every navigation or large DOM change; refs go stale.
-- Follow observe -> act -> observe. After each action, check `get url`,
-  `diff snapshot`, and `errors --json` (plain `errors` prints nothing).
-- Assert each expected result from application state with `wait --text`,
-  `wait --url`, `is visible`, or `get text`. Do not infer success only from the
-  absence of an error.
-- Pause about 1.5 seconds on each decisive result (`wait 1500`) so a viewer can
-  read it.
-- Record each decisive checkpoint label and its elapsed time.
-
-Do not use `eval` to change the DOM or to click. Do not use `network route` to
-fake or block responses, `set offline`, or `cookies set` and `storage` writes
-during the take. Do not edit the application in memory for the recording.
-Project-supported test fixtures are acceptable only when the proof clearly
-represents the environment and criterion being demonstrated.
-
-Stop normally and keep the result:
-
-```bash
-agent-browser --session <name> record stop --json
-```
-
-The JSON reports the saved path, `frames`, and `capturedFrames`. A take whose
-`capturedFrames` is 0 or 1 recorded a still image, not the workflow.
-
-## Handle failures and interruptions
-
-After `record start` succeeds, ending the capture becomes mandatory on every exit
-path. agent-browser has no maximum recording duration, so nothing stops a
-forgotten recording for you.
-
-If an interaction, assertion, command, or connection fails:
-
-1. Treat the current take as failed.
-2. Run `agent-browser --session <name> record stop`.
-3. If that fails, run `agent-browser --session <name> close` and confirm with
-   `agent-browser session list` that the session is gone. The list can still
-   name it for a few seconds after `close`, so check again after about three
-   seconds. Do not probe the session with another command: any command in a
-   closed session launches a new browser.
-4. Delete the failed take from the temporary directory, or keep it there solely
-   as a clearly identified diagnostic artifact. Never link it as proof.
-
-Never present an incomplete, failed, or unverified take as proof.
-
-## Validate the artifact
-
-Before delivery, verify all of the following:
-
-- `record stop --json` reported the expected path, and `capturedFrames` shows
-  more than a single still frame.
-- The file exists and has nonzero size.
-- A media probe finds a video stream and a positive duration.
-- A full decode completes without media errors.
-- The contact sheet and frames extracted near the initial state, each decisive
-  checkpoint, and the final state show the intended application and result.
-- No inspected frame or contact-sheet tile contains secrets or unrelated personal
-  content.
-- The scenario still satisfies the proof matrix.
-
-```bash
-ffprobe -v error \
-  -show_entries stream=codec_type,codec_name,width,height:format=duration \
-  -of json "$video_path"
-
-ffmpeg -v error -i "$video_path" -f null -
-
-ffmpeg -v error -ss "<checkpoint seconds>" -i "$video_path" -frames:v 1 \
-  "<tmpdir>/frame-<label>.png"
-```
-
-Inspect the extracted frames and the contact sheet visually. `ffmpeg` is already
-required by `record`, so no other tool is needed. If a reliable validation cannot
-be completed, report the video as unverified rather than proof.
-
-If a decisive moment is missing, unreadable, incorrect, or too fast, discard only
-that take and record a new one.
-
-## Deliver into the repository
-
-The output repository is always the Git checkout of the project being fixed. It
-is not the repository that contains this skill unless that repository is itself
-the target project.
-
-Require a Git working tree:
-
-```bash
-video_repo_root=$(git rev-parse --show-toplevel)
-```
-
-Save videos only below:
-
-```text
-<video_repo_root>/docs/videos/
-```
-
-Before creating that directory, a reservation file, a video, or any other output,
-inspect the index:
-
-```bash
-git -C "$video_repo_root" ls-files -- docs/videos/
-```
-
-Remember the result. Ignore rules do not protect files that are already tracked.
-Do not delete existing files, remove them from the index, modify their staged
-state, or conceal them.
-
-Check whether an ignore rule already applies:
-
-```bash
-git -C "$video_repo_root" check-ignore -v --no-index -- \
-  docs/videos/.video-proof-ignore-probe
-```
-
-If no rule applies, append this exact rule to the repository's local exclude file:
-
-```text
-/docs/videos/
-```
-
-Resolve the effective exclude file through Git:
-
-```bash
-video_exclude_file=$(
-  git -C "$video_repo_root" rev-parse \
-    --path-format=absolute --git-path info/exclude
-)
-```
-
-This is important for linked worktrees. Do not construct `.git/info/exclude`
-manually and do not assume that `.git` is a directory. Preserve existing exclude
-content and ensure the new rule starts on a new line. Do not modify the tracked
-`.gitignore` unless the user separately asks for that repository change.
-
-Verify the effective rule before the first output write:
-
-```bash
-git -C "$video_repo_root" check-ignore -v --no-index -- \
-  docs/videos/.video-proof-ignore-probe
-```
-
-Stop if the check still does not identify an ignore rule.
-
-Only then create `docs/videos/`.
-
-### Name the video
-
-Read the full local branch name with:
-
-```bash
-git -C "$video_repo_root" symbolic-ref --quiet --short HEAD
-```
-
-Use the entire returned name as the branch input, not only the text after its last
-slash. Normalize it as follows:
-
-1. Apply Unicode NFKD normalization and remove combining marks.
-2. Replace every slash with `-`.
-3. Replace each remaining run outside `A-Z`, `a-z`, `0-9`, `.`, `_`, and `-`
-   with `-`.
-4. Collapse repeated `-`.
-5. Remove leading `.` or `-` and trailing `.`, `_`, or `-`.
-6. Preserve ASCII letter case.
-7. Limit the result to 80 characters. If truncation is necessary, append `-`
-   and the first 12 hexadecimal characters of a SHA-256 hash of the exact,
-   unnormalized full branch name.
-8. If normalization produces an empty string, use `branch-` followed by that
-   12-character hash.
-
-For detached HEAD, do not invent a branch name. Use:
-
-```text
-detached-<first 12 hexadecimal characters of HEAD>
-```
-
-Normalize the short scenario description with the same rules, convert it to
-lowercase, and limit it to 48 characters. Use `proof-<12-character hash>` if it
-would otherwise be empty.
-
-Construct the filename with the extension chosen in preflight:
-
-```text
-<branch-slug>__<description-slug>__<YYYYMMDD-HHMMSS>.<ext>
-```
-
-For example:
-
-```text
-fix-T20-123__ulozeni-profilu__20260914-143022.mp4
-```
-
-Reserve the candidate name atomically with a sibling
-`<candidate>.video-proof-lock` created with exclusive or noclobber semantics. If
-the video or reservation already exists, append `-02`, `-03`, and so on to the
-timestamp and try again. Do not delete a reservation created by another process.
-Copy the validated take from the temporary directory to the reserved name, then
-remove only the reservation created by the current attempt. Never overwrite an
-existing file.
-
-Keep the contact sheet, extracted frames, logs, and media-probe output in the
-temporary directory. Only the video goes into `docs/videos/`.
-
-### Recheck Git safety
-
-For every video or task-created artifact, verify the ignore rule again:
-
-```bash
-git -C "$video_repo_root" check-ignore -v --no-index -- \
-  "<path-relative-to-video_repo_root>"
-```
-
-Check the index separately:
-
-```bash
-git -C "$video_repo_root" ls-files --error-unmatch -- \
-  "<path-relative-to-video_repo_root>"
-```
-
-The second command must fail for every task-created output. Also inspect the
-staged paths under `docs/videos/` and compare them with the preflight result.
-Never alter pre-existing tracked or staged files to make this check pass.
-
-Never stage, commit, force-add, or place videos or helper artifacts in Git LFS.
-
-## Clean up
-
-- Close the proof session: `agent-browser --session <name> close`.
-- Delete the private temporary directory, including any exported auth state.
-- Stop only application processes created for this proof, unless the project's
-  normal workflow explicitly requires them to remain running.
-
-## Deliver the proof
-
-Return:
-
-1. A direct link to the validated video.
-2. One or two sentences that identify the initial state, decisive actions, and
-   visible result.
-3. The checks used for acceptance criteria that video cannot prove.
-4. A concise list of anything still unverified.
-
-When the agent and user share the filesystem, link the absolute video path using
-the environment's normal clickable local-file syntax.
-
-When the agent runs remotely, use the environment's existing private artifact
-attachment or transfer mechanism and verify that the delivered artifact is
-reachable. Do not upload the video publicly, commit it, or claim that a remote
-filesystem path is accessible to the user. If no private transfer mechanism is
-available, state that delivery is incomplete and give the minimum concrete action
-needed to retrieve the file.
-
-If recording or artifact delivery remains unavailable, report the exact blocker,
-the work and non-video checks that succeeded, and the minimum user action
-required. Do not claim that the video proof exists.
+`--cursor` captures the pointer and click ripple. Verify both in the probe;
+every click, including checkbox and select interactions, must be visible.
+Rehearsed dependent sequences can use `batch --bail` to avoid command gaps.
+Install a cleanup trap for unattended sequences; stopping capture is mandatory
+on every exit path after it starts.
+
+Use fresh snapshot refs and real UI commands: observe → act → assert the expected
+state. Resnapshot after navigation or large changes. Assert with `wait --text`,
+`wait --url`, `is visible`, or `get text`; fixed waits serve viewer readability
+only. Hold the initial state for about 1–2 seconds and decisive results for at
+least 1.5 seconds, longer when speech or reading requires it. Check meaningful
+page state and `errors --json` (plain `errors` prints nothing).
+
+Log clip boundaries, clicks, and checkpoints against the **recording clock**.
+Use `get box <ref> --json` for each changed target's viewport coordinates.
+Apply timed thin outlines in postproduction, one target at a time, while that
+target is discussed. Clear outlines before scrolling/layout movement and
+remeasure afterward. Coordinates must match the captured resolution. Measure
+result positions again after layout-changing actions.
+
+Keep the original capture untouched. Highlights and subtitles are presentation
+annotations. They must leave labels and results readable. Do not modify the app's
+DOM/data, inject success, fake network responses, or replace user actions with
+hidden API calls. If a native click ripple is missing, add a timed annotation
+from the logged real click; never invent a click to imply an action occurred.
+
+On an interaction/assertion failure, stop and discard the take. If stopping fails,
+close the named session and confirm its disappearance from `session list`; avoid
+commands that relaunch it. Fix and rehearse again. After three failed fixes, name
+the doubtful assumption before another attempt. Never hide a failed outcome in an
+edit. Stop with `record stop --json`; `capturedFrames` of 0 or 1 is a still image,
+not a captured workflow.
+
+## Compose, evaluate, and deliver
+
+Follow [production.md](references/production.md) and use `scripts/render.py` for
+narration, bottom subtitles, and highlights. Keep UI actions at real speed.
+Trim preparation and idle gaps only; preserve the trigger, relevant loading
+behavior, state continuity, and decisive result. Announce resets or alternate
+scenarios. Cut at stable boundaries; transitions must not obscure evidence.
+The renderer allows a brief final-frame hold, but refuses a long freeze used to
+cover rushed footage. Rerecord at the correct pace instead.
+
+Evaluate the **final rendered file**, not just the raw take:
+
+1. Probe dimensions, positive duration, video/audio streams; decode the whole file
+   with `ffmpeg -v error -i <file> -f null -`.
+2. Watch and listen from start to finish. Confirm smooth motion, visible real
+   clicks, the requested voice/language (female English by default), pronunciation, volume,
+   complete sentences, and synchronization. If playback or listening is
+   unavailable, say so; the presentation remains unverified.
+3. Inspect extracted frames at the start, every changed target, each click/result,
+   seams, caption intervals, and the end. Check readable text, contrast,
+   unobstructed controls, outline position, caption presence, and sensitive data.
+4. Reconcile every coverage row with a final-video timestamp and its separate
+   check. Missing, unreadable, rushed, or unsupported beats fail the presentation.
+5. Read [delivery.md](references/delivery.md) before any output write to the target
+   repository; it governs ignore rules, branch naming, atomic reservation, Git
+   safety, and private artifact delivery. Deliver only after verification passes.
+
+Only the finished video goes into `docs/videos/`. Keep raw footage, scripts,
+audio, subtitles, coverage notes, frames, and renderer reports in the private
+temporary directory. Close the browser, delete temporary material including auth
+exports, and stop only processes started for this proof.
+
+Return the video link, concise timestamped change coverage, nonvisual checks, and
+anything unverified. Call an incomplete deliverable incomplete. Research behind
+this workflow is in [sources.md](references/sources.md); read it when revising the
+skill rather than for each recording.

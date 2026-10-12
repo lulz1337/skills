@@ -38,7 +38,7 @@
     {
       "name": "video-proof",
       "source": "./skills/video-proof",
-      "description": "Record a verified agent-browser video that demonstrates a completed fix or story, with build provenance, artifact validation, and Git safety checks.",
+      "description": "Present completed features through real browser footage with female English narration, bottom subtitles, change highlights, visible clicks, and verified build and Git safety.",
       "license": "MIT",
       "keywords": ["video", "agent-browser", "recording", "demo", "verification", "browser"]
     },

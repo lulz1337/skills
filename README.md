@@ -26,10 +26,10 @@ installation steps, usage, and everything else it needs.
   changes execution, adapts to a named target model using its official
   documentation, and requires an independent reviewer with no inherited
   conversation history.
-- [**video-proof**](skills/video-proof/) — Record a short agent-browser
-  video that proves a finished fix or story works. Ties the recording to the
-  current worktree and build, validates the file frame by frame, and keeps it
-  out of Git.
+- [**video-proof**](skills/video-proof/) — Present completed features with a
+  female English voice, small bottom subtitles, changed-field highlights, and
+  visible clicks. Covers the complete user scenario, verifies the real build
+  and final video, and keeps media out of Git.
 - [**orchestrator-claude**](skills/orchestrator-claude/) — Coordinate Claude
   workers with ten specialist roles, four modes and persistent tool boundaries.
 - [**orchestrator-codex**](skills/orchestrator-codex/) — Coordinate Codex workers

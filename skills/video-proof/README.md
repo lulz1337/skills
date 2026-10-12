@@ -1,87 +1,82 @@
 # Video Proof
 
-An agent skill that records a short browser video proving a finished fix or
-story actually works. It drives the real application through
-[`agent-browser`](https://github.com/vercel-labs/agent-browser), records the
-session with `agent-browser record`, validates the resulting file, and keeps
-the video out of Git.
+Present a finished feature through the real application. The video covers the
+complete user scenario with a female English voice, small bottom subtitles,
+highlights on changed fields and sections, and visible pointer movement and clicks.
+It supplements tests and identifies behavior the video cannot prove.
 
-It supplements tests. It never replaces them, and it says out loud which
-acceptance criteria a video cannot establish.
-
-## Installation
-
-Install with the skills CLI:
+## Install
 
 ```bash
 npx skills add lulz1337/skills --skill video-proof
 ```
 
-Or install it as a Claude Code plugin:
+For Claude Code:
 
-```
+```text
 /plugin marketplace add lulz1337/skills
 /plugin install video-proof@skills
 ```
 
-Or copy this folder into the skill directory of your agent harness.
+You can also copy this entire folder into your agent's skill directory. Include
+`references/` and `scripts/`; copying only `SKILL.md` loses the production helpers.
 
 ## Requirements
 
-- `agent-browser` on `PATH` (`npm install -g agent-browser`). It launches its
-  own Chrome, so no extension and no permission prompt is needed.
-- `ffmpeg` and `ffprobe`. `agent-browser record` pipes frames into ffmpeg; the
-  skill records `.mp4` where ffmpeg has libx264 and falls back to `.webm`
-  (VP8) where it only has libvpx, such as Fedora's `ffmpeg-free`.
+- Python 3, `agent-browser`, Chrome, `ffmpeg`, and `ffprobe`.
+- FFmpeg's `subtitles` filter and either `libx264`/`aac` for MP4 or
+  `libvpx`/`libopus` for WebM. Fedora's FFmpeg can use the WebM path.
+- A natural female English speech provider with caption timestamps. Reuse an
+  installed provider; `edge-tts` through `uv` is a small option without an API key.
+  It sends narration text to Microsoft's online service. Use a local neural
+  voice for private scripts.
 
-`agent-browser doctor` reports both.
+The skill probes the actual capture, speech, caption, and highlight pipeline
+before recording. Missing capabilities are reported; silent or uncaptioned output
+is not presented as the requested narrated video.
 
-## Usage
+## Use
 
-Ask for it explicitly. It never triggers on ordinary testing or screenshot
-requests:
-
+```text
+Use $video-proof to present the completed profile changes. Show the full scenario,
+including validation. Explain every change with a female English voice, bottom
+subtitles, changed-field highlights, and visible clicks.
 ```
-Fix the profile save bug and record a video proof
+
+A video request can precede the implementation. The skill preflights early and
+records after the work and checks finish. Explicit voice/language preferences or
+a silent-video request override the defaults. Ordinary testing and screenshot
+requests do not activate it.
+
+## What it checks
+
+- Every task change maps to a scene and timestamp, or a named nonvisual check.
+- The real application comes from the finished worktree/build. User actions and
+  asserted results remain intact; captions and highlights are presentation layers.
+- Speech timing controls pacing. Captions use measured boundaries, not word-count
+  estimates. Changed targets receive timed outlines without hiding their labels.
+- The final render decodes and contains video/audio. A full watch/listen and frame
+  review check caption visibility, click markers, pacing, pronunciation, and coverage.
+- Media stays outside Git. Only the finished video goes into locally ignored
+  `docs/videos/`, with branch-based names and overwrite protection.
+
+Listening or playback that cannot be completed stays explicitly unverified.
+Rendering a file alone does not establish presentation quality.
+
+## Files
+
+`SKILL.md` defines coverage, capture, and acceptance. `references/production.md`
+explains speech and the timeline. `scripts/render.py` composes scenes using only
+Python's standard library and FFmpeg. `references/delivery.md` preserves Git and
+artifact delivery rules; `references/sources.md` records the research.
+
+Check the helper with:
+
+```bash
+python3 skills/video-proof/scripts/render.py --self-check
 ```
 
-```
-Nahraj video, že to funguje
-```
+The [version 3 evaluation](references/evaluation.md) records the real browser
+exercise, bugs found and fixed, and the remaining listening/playback limits.
 
-The request may come at the start of the task. The skill then checks the
-recording prerequisites early and continues implementation while you install
-ffmpeg if it is missing.
-
-## What it guarantees
-
-- **Capture works before it matters.** A discarded probe recording proves that
-  a frame reaches the file, because `agent-browser doctor` alone does not.
-- **Nothing else is touched.** Every command runs in a named `--session`, so
-  the proof never drives your own Chrome, another agent's browser, or the
-  default session.
-- **The video shows the code you just wrote.** It records the worktree, commit,
-  branch, start command, and port, and refuses to present a recording it
-  cannot tie to the current build.
-- **The demonstration is honest.** Real user actions with the recorded cursor,
-  results asserted from application state, no DOM edits, no forced clicks, no
-  injected success data. For a bug, the original trigger against the fixed
-  application.
-- **The artifact is verified.** Non-zero duration, a full decode without
-  errors, and extracted frames inspected at the initial state, every decisive
-  checkpoint, and the result — also for leaked secrets. Takes are recorded
-  outside the repository, so a failed take never lands in it.
-- **Nothing lands in Git.** Videos go to `docs/videos/` under a rule written to
-  the effective `info/exclude` (resolved through Git, so linked worktrees work),
-  verified before the first write and again per artifact. Never staged, never
-  committed, never LFS.
-
-## Structure
-
-- `SKILL.md` — the whole skill: preflight, proof matrix, build provenance,
-  naming and reservation, recording, failure handling, artifact validation,
-  Git safety, and delivery.
-
-## License
-
-MIT
+MIT — see the repository license.
