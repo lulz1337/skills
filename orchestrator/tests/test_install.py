@@ -59,3 +59,25 @@ class InstallationTests(unittest.TestCase):
             installer.install(home, codex)
             self.assertTrue((codex / "hooks.json").is_file())
             self.assertFalse((home / ".codex/hooks.json").exists())
+
+    def test_each_provider_receives_its_own_guard_command_once(self):
+        with tempfile.TemporaryDirectory() as folder:
+            home = Path(folder)
+            installer.install(home)
+            installer.install(home)
+            expected = {home / ".claude/settings.json": 'python3 "$HOME/.agents/orchestrator-guard.py"',
+                        home / ".codex/hooks.json": 'python3 "$HOME/.agents/orchestrator-guard.py" --provider codex'}
+            for target, command in expected.items():
+                hooks = json.loads(target.read_text())["hooks"]
+                for event in ("UserPromptSubmit", "PreToolUse"):
+                    with self.subTest(target=target.name, event=event):
+                        commands = [h["command"] for group in hooks[event] for h in group["hooks"]]
+                        self.assertEqual(commands, [command])
+
+    def test_hybrid_package_agents_match_the_shared_claude_agents(self):
+        packaged = sorted((BUNDLE / "skills/orchestrator-hybrid/agents").glob("*.md"))
+        self.assertEqual([path.name for path in packaged],
+                         [f"worker-hybrid-{mode}.md" for mode in ("comprehensive", "fast", "quick", "standard")])
+        for path in packaged:
+            with self.subTest(agent=path.name):
+                self.assertEqual(path.read_bytes(), (BUNDLE / "claude-agents" / path.name).read_bytes())

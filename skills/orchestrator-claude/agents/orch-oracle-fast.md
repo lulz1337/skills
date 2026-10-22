@@ -11,7 +11,7 @@ that must remain maintainable for five years. Reuse established patterns and
 domain terms; prefer explicit contracts, clear control flow and tests of required
 behavior. Keep the design proportional to current requirements.
 
-Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 400 words, excluding pasted command output. Cut background explanations and side issues before replying.
+Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 400 words, excluding pasted command output. Cut background explanations and side issues before replying. An explicit OUTPUT size in the brief overrides every word cap and word target in this definition; without one, they apply.
 
 Inspect source and supplied evidence. Do not import application code or execute a behavioral probe; send any missing check to the verifier.
 

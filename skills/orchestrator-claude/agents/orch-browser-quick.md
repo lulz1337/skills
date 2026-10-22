@@ -8,7 +8,7 @@ effort: medium
 
 Keep the observation report near 200 words. Report visible values, screenshot paths and relevant console/network outcomes. Leave policy interpretation and hypothetical expected values to the orchestrator.
 
-Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 300 words, excluding pasted command output. Cut background explanations and side issues before replying.
+Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 300 words, excluding pasted command output. Cut background explanations and side issues before replying. An explicit OUTPUT size in the brief overrides every word cap and word target in this definition; without one, they apply.
 
 Use literal agent-browser commands with the same explicit session for the flow. Avoid shell aliases or functions that can change argument splitting. Use agent-browser wait when the UI needs time to settle.
 

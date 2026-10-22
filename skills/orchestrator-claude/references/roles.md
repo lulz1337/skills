@@ -34,17 +34,21 @@ resolved model, effort, agent type and tool list; those values are authoritative
 Claude implementer, verifier, runner, browser and publisher use Agent with the
 resolved agent_type. Read-only scout, researcher, reviewer, oracle, sage and
 critic use `new <family> <mode> <role>`, `brief <run>`, `start <run>` and
-`report <run>`; independent runs may share one `start-many` batch.
+`report <run> --final`; independent runs may share one `start-many` batch.
 Implementation uses `worker-<mode>` and review uses `reviewer-<mode>`;
 other contracts use `orch-<role>-<mode>`. Codex combines `<role>.md` (implementer
 is `worker.md`) with `profiles/<mode>.md`; scout and verifier use the quick profile; runner uses the
 standard worker tier in every mode after lower-tier state-report failures. Oracle, sage and critic use the comprehensive reviewer tier.
-Hybrid uses Codex for execution, discovery, research, browser work and diagnosis;
-review uses `reviewer-hybrid-<mode>`, and sage, critic and publisher use Claude
-`orch-<role>-<mode>`. Publisher uses Sonnet medium in every mode and is unavailable
-to the codex family. Thus hybrid critique can come from another model family.
-Claude uses latest-family aliases (Sonnet for closed contracts, Opus for
-implementation and standard reasoning, Fable for reasoning in other modes).
+Hybrid splits the frontiers: the Claude agent `worker-hybrid-<mode>` (Opus, high
+effort in every mode) implements, and Codex confirms. Reviewer and critic are
+Sol at high effort; verifier and oracle, with discovery, research and browser
+work, come from the Codex profiles. Runner, sage and publisher use Claude
+`orch-<role>-<mode>`. Publisher uses Sonnet medium in every mode and is
+unavailable to the codex family. Thus every hybrid confirmation comes from
+another model family than the implementation.
+Claude uses latest-family aliases (Sonnet for closed contracts except the
+runner, which is Opus medium in every mode; Opus for implementation and
+standard reasoning, Fable for reasoning in other modes).
 Codex queries its live model/list catalog and selects the newest visible version in the configured GPT
 tier, with gpt-6.1-sol as the minimum Sol version. The runtime reports live, cached
 or fallback metadata; cache and fallback cannot prove the latest release and

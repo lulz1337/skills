@@ -40,7 +40,9 @@ BRIEF
 `start-many` is a single foreground coordination call that runs independent
 Codex or read-only Claude runs concurrently and joins all of them. Writable
 Codex runs need active claims in its `--plan`; writable Claude roles and
-publisher use Agent with the resolved agent_type. `report --receipt <id>`
+publisher use Agent with the resolved agent_type. `report --final` prints
+final.md, one line per receipt with its command and exit code but no output,
+the execution summary and, only for a failed or flagged run, a stderr tail. `report --receipt <id>`
 recovers one complete recorded tool result; `report --full` recovers the full
 report and command outputs. `summary` counts the named runs once and sums
 recorded usage. These commands read coordination artifacts, not source files.

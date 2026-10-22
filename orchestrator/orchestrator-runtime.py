@@ -26,7 +26,15 @@ ROLES = ("scout", "verifier", "runner", "researcher", "browser", "implementer",
 READ_ONLY = {"scout", "researcher", "reviewer", "oracle", "sage", "critic"}
 REFERENCES = ("procedure", "examples", "pitfalls", "herdr", "roles", "tools", "workflow", "enforcement", "scheduling")
 MODEL_VERSION = re.compile(r"^gpt-(\d+(?:\.\d+)*)-(luna|terra|sol|astra)$")
+# Minimum Sol version and effort of the hybrid reviewer and critic, in every reviewed mode.
+HYBRID_REVIEWER = ("gpt-6.1-sol", "high")
 MODEL_CATALOG = None
+# Characters of final.md and stderr.log that a truncated report prints.
+REPORT_LIMIT = 16000
+# Characters at the end of stderr.log that `report --final` prints for a failed or flagged run.
+STDERR_EXCERPT = 2000
+# Characters of a receipt's command that `report --final` prints before it sets command_truncated.
+COMMAND_LIMIT = 500
 
 
 def execution_events(run):
@@ -148,6 +156,79 @@ def execution_summary(run):
     return {"run": str(run), "family": meta["family"], "role": meta["role"], **state, **cost, "usage": usage,
             "completed_receipts": len(receipts), "receipt_ids": [item.get("id") for item in receipts],
             "report_present": final.exists(), "pending_receipt_ids": pending, "evidence_issues": issues}
+
+
+def receipt_record(run, role, event, full):
+    """Project one completed tool receipt into the report's receipt line, or return None."""
+    item = event.get("item") or {}
+    if event.get("type") != "item.completed":
+        return None
+    if item.get("type") == "file_change":
+        changes = item.get("changes")
+        if (item.get("status") == "completed"
+                and isinstance(item.get("id"), str) and item["id"]
+                and isinstance(changes, list) and changes
+                and all(
+                    isinstance(change, dict)
+                    and isinstance(change.get("path"), str)
+                    and change["path"].strip()
+                    and isinstance(change.get("kind"), str)
+                    and change["kind"].strip()
+                    for change in changes
+                )):
+            return {
+                "run": str(run), "role": role,
+                "receipt_id": item["id"], "status": item["status"],
+                "file_changes": [
+                    {"path": change["path"], "kind": change["kind"]}
+                    for change in changes
+                ],
+            }
+        return None
+    if item.get("type") == "command_execution" or "is_error" in item:
+        key = "verifier_command" if role == "verifier" else "worker_command"
+        output = str(item.get("aggregated_output", ""))
+        outcome = {"is_error": item["is_error"]} if "is_error" in item and "exit_code" not in item else {"exit_code": item.get("exit_code")}
+        return {"run": str(run), "role": role, key: item.get("command"), **outcome,
+                "receipt_id": item.get("id"), "output_truncated": not full and len(output) > 1000,
+                "output": output if full else output[:1000]}
+    return None
+
+
+def final_report(run, role):
+    """Print final.md, one receipt line per completed tool action and the execution summary.
+
+    A receipt line is the default report's line without `output`; file changes
+    carry paths and kinds only. A stderr.log tail is added only when the run
+    failed, was interrupted or has evidence issues. `report --receipt <id>` and
+    `report --full` recover the rest.
+    """
+    final = artifact(run, "final.md")
+    if final.exists():
+        content = final.read_text()
+        print(f"final.md:\n{content[:REPORT_LIMIT]}")
+        if len(content) > REPORT_LIMIT:
+            print(f"[truncated; recover with report {run} --full]")
+    for event in execution_events(run):
+        record = receipt_record(run, role, event, full=False)
+        if record is None:
+            continue
+        record.pop("output", None)
+        key = "verifier_command" if "verifier_command" in record else "worker_command"
+        if isinstance(record.get(key), str) and len(record[key]) > COMMAND_LIMIT:
+            record[key] = record[key][:COMMAND_LIMIT]
+            record["command_truncated"] = True
+        print(json.dumps(record))
+    summary = execution_summary(run)
+    stderr = artifact(run, "stderr.log")
+    if (summary.get("status") in {"failed", "interrupted"} or summary["evidence_issues"]) and stderr.exists():
+        content = stderr.read_text()
+        if content.strip():
+            print(f"stderr.log (last {STDERR_EXCERPT} characters):\n{content[-STDERR_EXCERPT:]}")
+            if len(content) > STDERR_EXCERPT:
+                print(f"[truncated; recover with report {run} --full]")
+    print(json.dumps({"execution_summary": summary}))
+    return 1 if summary["evidence_issues"] else 0
 
 
 @contextmanager
@@ -433,9 +514,12 @@ def role_settings(family, mode, role):
         raise ValueError("publisher is a Claude role; the codex family cannot publish an Artifact")
     if mode == "quick" and role in {"reviewer", "critic"}:
         raise ValueError("quick has no review; choose fast, standard or comprehensive")
-    kind = "claude" if family == "claude" or family == "hybrid" and role in {"reviewer", "sage", "critic", "publisher"} else "codex"
+    # Hybrid: one frontier implements (Claude), the other confirms (Codex reviewer,
+    # critic, verifier, oracle). Sage advises, runner executes closed command
+    # lists on Opus, and publisher is Claude-only.
+    kind = "claude" if family == "claude" or family == "hybrid" and role in {"implementer", "runner", "sage", "publisher"} else "codex"
     if kind == "claude":
-        name = f"worker-{mode}" if role == "implementer" else f"reviewer-{'hybrid-' if family == 'hybrid' else ''}{mode}" if role == "reviewer" else f"orch-{role}-{mode}"
+        name = f"worker-{'hybrid-' if family == 'hybrid' else ''}{mode}" if role == "implementer" else f"reviewer-{mode}" if role == "reviewer" else f"orch-{role}-{mode}"
         fields, body = definition(AGENTS / "claude-agents" / f"{name}.md")
         return {"kind": kind, "agent_type": name, "model": fields["model"],
                 "effort": fields["effort"], "tools": fields["tools"], "body": body,
@@ -456,6 +540,10 @@ def role_settings(family, mode, role):
     if role in {"oracle", "sage", "critic"}:
         strong, _ = definition(AGENTS / "codex-agents" / "profiles" / "comprehensive.md")
         model, effort = strong["reviewer_model"], strong["reviewer_reasoning_effort"]
+    if family == "hybrid" and role in {"reviewer", "critic"}:
+        # Hybrid pairs a Claude implementer with Sol review and critique in every
+        # mode; the profile's reviewer half belongs to the codex family.
+        model, effort = HYBRID_REVIEWER
     model, source = latest_model(model, effort)
     # Read-only Codex sandboxes cannot write the verifier's normal build output.
     return {"kind": kind, "agent_type": name, "model": model, "effort": effort,
@@ -742,6 +830,8 @@ def parser():
         if name == "report":
             command.add_argument("--full", action="store_true")
             command.add_argument("--receipt")
+            command.add_argument("--final", action="store_true",
+                                 help="print only final.md and the execution summary")
         if name == "start":
             command.add_argument("--pane")
             command.add_argument("--bypass-caveman", action="store_true")
@@ -836,6 +926,10 @@ def main(argv=None):
             artifact(run, "prompt.md").write_text(brief if fields["kind"] == "claude" else fields["body"] + "\n\n" + brief)
         print(artifact(run, "prompt.md"))
     elif args.action == "report":
+        if args.final:
+            if args.full or args.receipt:
+                raise ValueError("report --final excludes --full and --receipt")
+            return final_report(run, meta["role"])
         events = execution_events(run)
         if args.receipt:
             receipts = [event["item"] for event in events if event.get("type") == "item.completed"
@@ -849,43 +943,16 @@ def main(argv=None):
             path = artifact(run, name)
             if path.exists():
                 content = path.read_text()
-                print(f"{name}:\n{content if args.full else content[:16000]}")
-                if not args.full and len(content) > 16000:
+                print(f"{name}:\n{content if args.full else content[:REPORT_LIMIT]}")
+                if not args.full and len(content) > REPORT_LIMIT:
                     print(f"[truncated; recover with report {run} --full]")
         if events:
             for event in events:
                 if event.get("type") in {"thread.started", "turn.completed", "turn.failed", "error"}:
                     print(json.dumps(event))
-                item = event.get("item") or {}
-                if event.get("type") == "item.completed" and item.get("type") == "file_change":
-                    changes = item.get("changes")
-                    if (item.get("status") == "completed"
-                            and isinstance(item.get("id"), str) and item["id"]
-                            and isinstance(changes, list) and changes
-                            and all(
-                                isinstance(change, dict)
-                                and isinstance(change.get("path"), str)
-                                and change["path"].strip()
-                                and isinstance(change.get("kind"), str)
-                                and change["kind"].strip()
-                                for change in changes
-                            )):
-                        print(json.dumps({
-                            "run": str(run), "role": meta["role"],
-                            "receipt_id": item["id"], "status": item["status"],
-                            "file_changes": [
-                                {"path": change["path"], "kind": change["kind"]}
-                                for change in changes
-                            ],
-                        }))
-                    continue
-                if event.get("type") == "item.completed" and (item.get("type") == "command_execution" or "is_error" in item):
-                    key = "verifier_command" if meta["role"] == "verifier" else "worker_command"
-                    output = str(item.get("aggregated_output", ""))
-                    outcome = {"is_error": item["is_error"]} if "is_error" in item and "exit_code" not in item else {"exit_code": item.get("exit_code")}
-                    print(json.dumps({"run": str(run), "role": meta["role"], key: item.get("command"), **outcome,
-                                      "receipt_id": item.get("id"), "output_truncated": not args.full and len(output) > 1000,
-                                      "output": output if args.full else output[:1000]}))
+                record = receipt_record(run, meta["role"], event, args.full)
+                if record is not None:
+                    print(json.dumps(record))
         summary = execution_summary(run)
         print(json.dumps({"execution_summary": summary}))
         return 1 if summary["evidence_issues"] else 0

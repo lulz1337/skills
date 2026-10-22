@@ -3,7 +3,7 @@
 Follow [workflow.md](workflow.md). For dependencies or a retained plan, use
 [scheduling.md](scheduling.md). For read-only Claude roles (scout, researcher,
 reviewer, oracle, sage, critic), use `new claude <mode> <role>`, `brief <run>`,
-`start <run>` and `report <run>`. Call Claude `start` without
+`start <run>` and `report <run> --final`. Call Claude `start` without
 `dangerouslyDisableSandbox`; the guard denies it. Writable Claude roles
 (implementer, verifier, runner, browser) and publisher use Agent with the
 resolved agent_type and no model override. Start descriptions with the role;

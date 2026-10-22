@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "orchestrator-hybrid",
-  "description": "Run a task as an orchestrator over a mixed pair: a Codex worker executes and, from fast up, a Claude reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-hybrid.",
-  "version": "2.1.0",
+  "description": "Run a task as an orchestrator over a mixed pair: a Claude Opus worker implements and, from fast up, a Codex Sol reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses the rest. Use only when the user asks for /orchestrator-hybrid.",
+  "version": "2.2.0",
   "author": {
     "name": "lulz1337",
     "url": "https://github.com/lulz1337"

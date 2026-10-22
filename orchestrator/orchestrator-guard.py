@@ -14,7 +14,9 @@ import sys
 SKILLS = {f"orchestrator-{family}" for family in ("claude", "codex", "hybrid")}
 COORDINATION = {"Agent", "Task", "TaskOutput", "TaskStop", "TaskCreate", "TaskGet",
                 "TaskList", "TaskUpdate", "TodoWrite", "AskUserQuestion", "Skill",
-                "ToolSearch", "SendMessage", "EnterPlanMode", "ExitPlanMode"}
+                "ToolSearch", "SendMessage", "EnterPlanMode", "ExitPlanMode",
+                # Reads queued background-task and session notifications, not repository content.
+                "ReadNotifications"}
 DENIED = {"Read", "Edit", "Write", "NotebookEdit", "MultiEdit", "Glob", "Grep"}
 ACTIVATE = re.compile(r"^[/$](orchestrator-(?:claude|codex|hybrid))(?=\s|$)")
 NATIVE_ACTIVATE = re.compile(r"(?<![\w$])\$(orchestrator-(?:claude|codex|hybrid))(?=\s|$)")
@@ -152,7 +154,7 @@ def routed_agent(skill, agent_type):
     if skill == "orchestrator-codex":
         return False  # Codex roles start through the runtime, never Claude Agent.
     if skill == "orchestrator-hybrid":
-        return bool(re.fullmatch(rf"reviewer-hybrid-{reviewed}|orch-(?:sage|publisher)-{mode}|orch-critic-{reviewed}", agent_type))
+        return bool(re.fullmatch(rf"worker-hybrid-{mode}|orch-(?:runner|sage|publisher)-{mode}", agent_type))
     return bool(re.fullmatch(rf"worker-{mode}|reviewer-{reviewed}|orch-(?:scout|verifier|runner|researcher|browser|oracle|sage|publisher)-{mode}|orch-critic-{reviewed}", agent_type))
 
 

@@ -22,9 +22,12 @@ approval, to the user at once with the exact command, for example
 `! gh auth login`. Independent work continues meanwhile.
 
 Accept execution claims only with completed tool receipts. An unattempted lookup
-is not an empty result or an access failure. For Codex, inspect the runtime
-report's evidence issues and recover material truncated receipts with
-`report <run> --receipt <id>` or `--full`. A rejected discovery report gets one
+is not an empty result or an access failure. For Codex, read
+`report <run> --final`, which prints final.md, each receipt's command and exit
+code without output, the execution summary and, for a failed or flagged run, a
+stderr tail. Inspect its exit codes and evidence issues, recover a receipt's
+output with `report <run> --receipt <id>` when that output is evidence you need,
+and recover everything with `--full`. A rejected discovery report gets one
 bounded retry; if it still misses its outcome, escalate to oracle for diagnosis,
 then resume one source lookup bounded by that diagnosis.
 
@@ -101,6 +104,8 @@ rule requires them. Apply repository rules to the paths and conditions they
 name; a rule for orders/ or tests/ does not apply to docker-compose.yml.
 Explicit user constraints take precedence. An
 end-to-end test needs an exact user-requested scenario and permitted environment.
+Without both, keep it out of every brief and VERIFY plan; do not ask a worker
+to run it, even to show that it skips.
 Re-check the exact reproduced input after a fix.
 Send failed checks to the implementer; use oracle after a failed fix attempt.
 

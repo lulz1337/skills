@@ -6,7 +6,7 @@ disable-model-invocation: true
 disallowed-tools: Read, Edit, Write, NotebookEdit, Glob, Grep
 license: MIT
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 Coordinate the requested task with Codex workers. The main thread owns decisions,

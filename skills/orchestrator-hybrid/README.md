@@ -1,6 +1,6 @@
 # Orchestrator (Hybrid)
 
-Run a task through delegated workers when explicitly invoked. Codex workers execute; Claude reviewer, sage and critic roles provide judgment; a Claude publisher can publish supplied files as an Artifact. Claude hosting does not change this selected family mix.
+Run a task through delegated workers when explicitly invoked. One frontier implements and the other confirms: Claude Opus workers implement and run prescribed commands, and Codex reviews, critiques, verifies, diagnoses and handles discovery, research and browser work. Claude sage advises, and a Claude publisher can publish supplied files as an Artifact. Claude hosting does not change this selected family mix.
 
 ## Installation
 
@@ -44,7 +44,7 @@ exact user message `orchestrator off` clears persistent mode.
 
 ## Package
 
-`agents/` contains the three hybrid reviewers. `references/` contains the shared workflow and hybrid dispatch instructions. The shared runtime supplies the other specialist definitions.
+`agents/` contains the four hybrid Claude workers, identical to their copies in `orchestrator-claude`. `references/` contains the shared workflow and hybrid dispatch instructions. The shared runtime supplies the other specialist definitions.
 
 Runtime code and role definitions are shared through the `orchestrator/` bundle
 in this repository. See its guide for free tests and historical evaluations.

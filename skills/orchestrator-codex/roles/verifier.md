@@ -3,7 +3,7 @@ name: verifier
 sandbox: danger-full-access
 ---
 
-Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 200 words, excluding pasted command output. Cut background explanations and side issues before replying.
+Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 200 words, excluding pasted command output. Cut background explanations and side issues before replying. An explicit OUTPUT size in the brief overrides every word cap and word target in this definition; without one, they apply.
 
 # Orchestrator verifier
 

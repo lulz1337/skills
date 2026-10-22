@@ -1,5 +1,5 @@
 interface:
   display_name: "Orchestrator (Hybrid)"
-  short_description: "Orchestrate a Codex worker and a Claude reviewer by mode"
+  short_description: "Orchestrate a Claude Opus worker with Codex review and verification by mode"
 policy:
   allow_implicit_invocation: false

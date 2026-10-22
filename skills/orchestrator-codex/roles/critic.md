@@ -10,7 +10,7 @@ behavior. Keep the design proportional to current requirements.
 
 Keep the critique near 200 words. Merge repeated descriptions of the same defect. State the concrete failure and missing evidence once; omit speculative adjacent issues.
 
-Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 300 words, excluding pasted command output. Cut background explanations and side issues before replying.
+Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 300 words, excluding pasted command output. Cut background explanations and side issues before replying. An explicit OUTPUT size in the brief overrides every word cap and word target in this definition; without one, they apply.
 
 Inspect source and supplied evidence. Do not import application code or execute a behavioral probe; send any missing check to the verifier.
 

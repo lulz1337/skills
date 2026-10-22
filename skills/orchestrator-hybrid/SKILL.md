@@ -1,16 +1,16 @@
 ---
 name: orchestrator-hybrid
-description: "Run a task as an orchestrator over a mixed pair: a Codex worker executes and, from fast up, a Claude reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-hybrid."
+description: "Run a task as an orchestrator over a mixed pair: a Claude Opus worker implements and, from fast up, a Codex Sol reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses the rest. Use only when the user asks for /orchestrator-hybrid."
 argument-hint: "[quick|fast|standard|comprehensive] [--visible] [task]"
 disable-model-invocation: true
 disallowed-tools: Read, Edit, Write, NotebookEdit, Glob, Grep
-compatibility: "Needs the shared orchestrator runtime installed, codex and caveman on PATH, and Claude Code for review. herdr is optional."
+compatibility: "Needs the shared orchestrator runtime installed, codex and caveman on PATH, and Claude Code for implementation. herdr is optional."
 license: MIT
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
-Coordinate the requested task with Codex execution and Claude review. The main thread owns decisions,
+Coordinate the requested task with Claude implementation and Codex review. The main thread owns decisions,
 briefs, dispatch and adjudication; workers own repository, web and browser work.
 
 ## Select the mode
@@ -24,12 +24,18 @@ With no task, reply in one line naming the mode and pair/profile, include visibl
 when selected, and wait. Keep the settings across later tasks until the next
 invocation or the user's exact `orchestrator off` message.
 
-| Mode | Codex worker | Claude reviewer | Use for |
+| Mode | Claude worker | Codex reviewer | Use for |
 | --- | --- | --- | --- |
-| `quick` | `profiles/quick.md` | none | a settled, small change, no review |
-| `fast` | `profiles/fast.md` | `reviewer-hybrid-fast` | a settled change, checked by a reviewer |
-| `standard` | `profiles/standard.md` | `reviewer-hybrid-standard` | the default: implementation needs judgment |
-| `comprehensive` | `profiles/comprehensive.md` | `reviewer-hybrid-comprehensive` | work where a missed defect is expensive |
+| `quick` | `worker-hybrid-quick` | none | a settled, small change, no review |
+| `fast` | `worker-hybrid-fast` | Sol, high effort | a settled change, checked by a reviewer |
+| `standard` | `worker-hybrid-standard` | Sol, high effort | the default: implementation needs judgment |
+| `comprehensive` | `worker-hybrid-comprehensive` | Sol, high effort | work where a missed defect is expensive |
+
+One frontier implements and the other confirms. Every Claude worker is the
+latest Opus at high effort. Reviewer and critic are the newest visible Sol at
+or above gpt-6.1-sol at high effort, resolved by the runtime; verifier and
+oracle are Codex roles from `profiles/<mode>.md`, as are scout, researcher
+and browser. Runner (Opus, medium), sage (advice) and publisher stay Claude.
 
 Every mode finishes scoped implementation and source review/fixes before final
 verification. Quick has no independent reviewer. Specialist roles are chosen

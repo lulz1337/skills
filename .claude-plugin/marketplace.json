@@ -59,7 +59,7 @@
     {
       "name": "orchestrator-hybrid",
       "source": "./skills/orchestrator-hybrid",
-      "description": "Run a task as an orchestrator over a mixed pair: a Codex worker executes and, from fast up, a Claude reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-hybrid.",
+      "description": "Run a task as an orchestrator over a mixed pair: a Claude Opus worker implements and, from fast up, a Codex Sol reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses the rest. Use only when the user asks for /orchestrator-hybrid.",
       "license": "MIT",
       "keywords": ["orchestration", "codex", "subagents", "delegation", "review", "claude", "openai"]
     }

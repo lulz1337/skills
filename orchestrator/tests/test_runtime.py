@@ -128,8 +128,14 @@ class GuardTests(unittest.TestCase):
         self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-publisher-standard"}))
         self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "worker-standard"}))
         self.hook("UserPromptSubmit", prompt="/orchestrator-hybrid standard")
-        self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "reviewer-hybrid-standard"}), {})
-        self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-critic-standard"}), {})
+        self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "worker-hybrid-standard"}), {})
+        # Hybrid confirmation (reviewer, critic) is a Codex run through the runtime; no Claude agent does it.
+        self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "reviewer-hybrid-standard"}))
+        self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "reviewer-standard"}))
+        self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "worker-standard"}))
+        self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-critic-standard"}))
+        self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-sage-standard"}), {})
+        self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-runner-standard"}), {})
         self.assertEqual(self.hook(tool_name="Agent", tool_input={"subagent_type": "orch-publisher-standard"}), {})
         self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "general-purpose"}))
         self.assertTrue(self.hook(tool_name="Agent", tool_input={"subagent_type": "worker-standard"}))
@@ -177,6 +183,13 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(merged["hooks"]["SessionStart"], original["hooks"]["SessionStart"])
         self.assertEqual(merged["hooks"]["PreToolUse"][0], {"matcher": "Bash", "hooks": [{"command": "other"}]})
         self.assertEqual(len(original["hooks"]["PreToolUse"][0]["hooks"]), 2)
+
+    def test_codex_hook_install_keeps_an_installed_handler_in_place(self):
+        installer = load(REPO / "orchestrator/apply-codex-hooks.py", "orchestrator_hooks_installer")
+        ours = {"hooks": [installer.handler()]}
+        later = {"hooks": [{"command": "other-hook codex"}]}
+        installed = {"hooks": {event: [ours, later] for event in installer.EVENTS}}
+        self.assertEqual(installer.merge(installed), installed)
 
     def test_saved_run_cannot_launch_after_switching_family(self):
         with tempfile.TemporaryDirectory(prefix="orchestrator-", dir=runtime.ensure_run_root()) as temp:
@@ -302,10 +315,12 @@ class RuntimeTests(unittest.TestCase):
                 self.assertIn("Read-only file system", source)
 
     def test_codex_runners_use_current_sol_in_every_mode_after_state_report_failures(self):
+        # The hybrid runner is the Claude agent orch-runner-<mode> on Opus; only codex keeps a Sol runner.
         for family in ('codex','hybrid'):
             for mode in runtime.MODES:
-                settings=runtime.role_settings(family,mode,'runner')
-                self.assertEqual((settings['model'],settings['effort']),('gpt-6.1-sol','medium'))
+                if family == 'codex':
+                    settings=runtime.role_settings(family,mode,'runner')
+                    self.assertEqual((settings['model'],settings['effort']),('gpt-6.1-sol','medium'))
                 self.assertEqual(runtime.role_settings(family,mode,'scout')['model'],'gpt-6-luna')
 
     def new_run(self, family="codex", mode="standard", role="implementer"):
@@ -340,8 +355,26 @@ class RuntimeTests(unittest.TestCase):
                             self.assertEqual(settings["sandbox"], expected)
                         elif role in runtime.READ_ONLY:
                             self.assertFalse({"Write", "Edit", "Agent", "Task"} & set(settings["tools"].replace(" ", "").split(",")))
-        self.assertEqual(runtime.role_settings("hybrid", "standard", "critic")["kind"], "claude")
-        self.assertEqual(runtime.role_settings("hybrid", "standard", "implementer")["kind"], "codex")
+        # One frontier implements, the other confirms: every confirming hybrid role is Codex.
+        for role in ("reviewer", "critic", "verifier", "oracle"):
+            self.assertEqual(runtime.role_settings("hybrid", "standard", role)["kind"], "codex", role)
+        for role in ("implementer", "runner", "sage", "publisher"):
+            self.assertEqual(runtime.role_settings("hybrid", "standard", role)["kind"], "claude", role)
+        for family in ("claude", "hybrid"):
+            for mode in runtime.MODES:
+                runner = runtime.role_settings(family, mode, "runner")
+                self.assertEqual((runner["agent_type"], runner["model"], runner["effort"]),
+                                 (f"orch-runner-{mode}", "opus", "medium"), (family, mode))
+        critic = runtime.role_settings("hybrid", "standard", "critic")
+        self.assertEqual((critic["model"], critic["effort"], critic["sandbox"]), ("gpt-6.1-sol", "high", "read-only"))
+        for mode in runtime.MODES:
+            implementer = runtime.role_settings("hybrid", mode, "implementer")
+            self.assertEqual((implementer["kind"], implementer["agent_type"], implementer["model"], implementer["effort"]),
+                             ("claude", f"worker-hybrid-{mode}", "opus", "high"))
+            if mode != "quick":
+                reviewer = runtime.role_settings("hybrid", mode, "reviewer")
+                self.assertEqual((reviewer["kind"], reviewer["model"], reviewer["effort"], reviewer["sandbox"]),
+                                 ("codex", "gpt-6.1-sol", "high", "read-only"))
 
     def test_sandbox_tmpdir_and_hook_agree_on_run_root(self):
         original_tempdir = tempfile.tempdir
@@ -753,7 +786,8 @@ class RuntimeTests(unittest.TestCase):
                     process.assert_not_called()
 
     def test_batch_rejects_mixed_kinds_before_launch(self):
-        runs = [self.new_run("hybrid", "standard", role) for role in ("scout", "reviewer")]
+        # Hybrid scout is Codex and hybrid sage is Claude; every confirming role is Codex since the Sol swap.
+        runs = [self.new_run("hybrid", "standard", role) for role in ("scout", "sage")]
         for run in runs:
             (run / "prompt.md").write_text("Read source")
         with patch.object(runtime.subprocess, "call") as process:
@@ -895,7 +929,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(summary["finished"])
 
     def test_visible_start_preserves_tools_and_read_only_report_delivery(self):
-        run = self.new_run("hybrid", "standard", "reviewer")
+        run = self.new_run("claude", "standard", "reviewer")
         with patch.object(sys, "stdin", io.StringIO("GOAL: review")), redirect_stdout(io.StringIO()):
             runtime.main(["brief", str(run)])
         pane = subprocess.CompletedProcess([], 0, json.dumps({"result": {"pane": {"foreground_cwd": json.loads((run / "run.json").read_text())["workspace"]}}}))

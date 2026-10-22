@@ -1,17 +1,21 @@
 # Hybrid dispatch
 
 Follow [workflow.md](workflow.md). For dependencies or a retained plan, use
-[scheduling.md](scheduling.md). Codex owns implementation, discovery,
-research, browser work and diagnosis. Claude owns reviewer, sage and critic.
-The runtime's resolved role metadata selects the family and model.
+[scheduling.md](scheduling.md). One frontier implements and the other
+confirms: Claude owns implementation, runner, sage and publisher. Codex owns
+every confirming role (reviewer, critic, verifier, oracle) plus discovery,
+research and browser work. The runtime's resolved role metadata selects the
+family and model.
 
-For Codex roles use `new hybrid <mode> <role>`, `brief <run>`, `start <run>` and
-`report <run>` as [examples.md](examples.md) shows. Read-only Claude roles
-(reviewer, sage, critic) use the same runtime sequence. Call Claude `start`
-without `dangerouslyDisableSandbox`; the guard denies it. Writable Claude
-roles (implementer, verifier, runner, browser) and publisher use Agent with
-the resolved agent_type and no model override. The reviewer is
-reviewer-hybrid-<mode>. Quick has no reviewer or critic.
+For Codex roles, including reviewer and critic, use `new hybrid <mode> <role>`,
+`brief <run>`, `start <run>` and `report <run> --final` as [examples.md](examples.md)
+shows. The read-only Claude role sage uses the same runtime sequence. Call
+Claude `start` without `dangerouslyDisableSandbox`; the guard denies it. The
+implementer, runner and publisher use Agent with the resolved agent_type and
+no model override. The implementer is worker-hybrid-<mode>, Opus at high
+effort in every mode; the runner is orch-runner-<mode>, Opus at medium;
+reviewer and critic are Sol Codex runs at high effort. Quick has no reviewer
+or critic.
 
 Disclose proxy bypasses and keep detailed usage in coordination state. Keep
 Claude and Codex usage separate in the aggregate line. A different review

@@ -10,11 +10,26 @@ COMMAND = 'python3 "$HOME/.agents/orchestrator-guard.py" --provider codex'
 EVENTS = ("UserPromptSubmit", "PreToolUse")
 
 
+def handler():
+    """Return the managed handler for the current COMMAND.
+
+    install.py replaces COMMAND for Claude settings after loading this module,
+    so the handler is built on each call rather than once at import.
+    """
+    return {"type": "command", "command": COMMAND, "timeout": 10, "statusMessage": "Orchestrator tool boundary"}
+
+
 def merge(data):
     result = json.loads(json.dumps(data))
     hooks = result.setdefault("hooks", {})
     for event in EVENTS:
         groups = hooks.setdefault(event, [])
+        # Already installed once, in its own group: keep its position. Moving it
+        # to the end on every run undoes an order that another hook manager
+        # relies on, and that manager then moves its own handler back.
+        ours = [g for g in groups if any(h.get("command") == COMMAND for h in g.get("hooks", []))]
+        if ours == [{"hooks": [handler()]}]:
+            continue
         # Retire only this managed handler. Preserve every unrelated handler,
         # including one that shares its matcher group.
         cleaned = []
@@ -22,8 +37,7 @@ def merge(data):
             handlers = [h for h in group.get("hooks", []) if h.get("command") != COMMAND]
             if handlers:
                 cleaned.append({**group, "hooks": handlers})
-        cleaned.append({"hooks": [{"type": "command", "command": COMMAND,
-                                   "timeout": 10, "statusMessage": "Orchestrator tool boundary"}]})
+        cleaned.append({"hooks": [handler()]})
         hooks[event] = cleaned
     return result
 

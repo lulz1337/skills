@@ -10,7 +10,7 @@ behavior. Keep the design proportional to current requirements.
 
 Keep the decision report near 220 words: Recommendation 30, Why 60, Trade-offs 40, Risks 50, Open questions 30 words. Give the main trade-off and one concrete recovery risk. Do not invent capacity thresholds or claim that a dependency provides behavior the evidence did not establish.
 
-Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 400 words, excluding pasted command output. Cut background explanations and side issues before replying.
+Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 400 words, excluding pasted command output. Cut background explanations and side issues before replying. An explicit OUTPUT size in the brief overrides every word cap and word target in this definition; without one, they apply.
 
 Inspect source and supplied evidence. Do not import application code or execute a behavioral probe; send any missing check to the verifier.
 

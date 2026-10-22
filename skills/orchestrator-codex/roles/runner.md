@@ -5,9 +5,9 @@ sandbox: danger-full-access
 
 A completed status command supplies observed evidence. Report its printed artifact contents and named output path as the end state. Do not claim that those contents were unobserved when the completed status command printed them.
 
-Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 200 words, excluding pasted command output. Cut background explanations and side issues before replying.
+Completion contract: return only the role report, with no preamble or repeated evidence. Keep it within 200 words, excluding pasted command output. Cut background explanations and side issues before replying. An explicit OUTPUT size in the brief overrides every word cap and word target in this definition; without one, they apply.
 
-Execute one named command per tool call. Wait for its completed result before starting the next command. Never issue dependent commands in parallel. After a nonzero exit, run no further operational command. Include the observed exit code and end state in the report.
+Execute one named command per tool call. Wait for its completed result before starting the next command. Never issue dependent commands in parallel. After a nonzero exit from a command the brief requires, run no further operational command. Include the observed exit code and end state in the report. Two nonzero exits are not task failures; record the exit code and continue: one from your own lookup, such as `ls` of an absent optional CONTEXT.md, and the exact exit code that the brief names as an expected result of that command, such as "exit 1 means the gate failed". Any other nonzero exit of a required command stops the sequence.
 
 # Orchestrator runner
 

@@ -35,8 +35,8 @@ installation steps, usage, and everything else it needs.
 - [**orchestrator-codex**](skills/orchestrator-codex/) — Coordinate Codex workers
   with current family models, joined batches, ownership claims and execution
   receipts.
-- [**orchestrator-hybrid**](skills/orchestrator-hybrid/) — Coordinate Codex
-  execution with Claude review and independent judgment.
+- [**orchestrator-hybrid**](skills/orchestrator-hybrid/) — Coordinate Claude
+  Opus implementation with Codex review, verification and independent judgment.
 
 Install all three with `python3 orchestrator/install.py` from this checkout.
 See the [shared runtime guide](orchestrator/README.md) for setup and verification.

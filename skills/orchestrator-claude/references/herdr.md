@@ -24,7 +24,7 @@ do not interpret a failed wait as a successful result. If the worker is blocked
 on a dialog, show its need for input and wait for the user. After the user
 answers, invoke `wait <run>`; do not resend the task.
 
-Writable roles write final.md; read it with `report <run>`. Read-only roles
+Writable roles write final.md; read it with `report <run> --final`. Read-only roles
 reply in their pane; use `read-pane <run>` (recent-unwrapped, 300 lines). If the
 result is truncated, send a focused brief asking only for the missing findings.
 For a follow-up, `brief <run>` replaces prompt.md, and `prompt <run>` sends it

@@ -46,14 +46,18 @@ changed symlink targets. `--home <directory>` supports an isolated installation;
 
 Each role has quick, fast, standard and comprehensive variants. Quick excludes
 reviewer and critic. Claude uses Claude workers; Codex uses Codex workers. Hybrid
-uses Codex execution and Claude reviewer, sage, critic and publisher roles.
+splits the work by frontier: Claude Opus implements and runs prescribed
+commands, Claude sage advises and Claude publisher publishes; Codex reviews,
+critiques, verifies, diagnoses and handles discovery, research and browser work.
+The hybrid reviewer and critic use Sol at high effort in every reviewed mode.
 Publisher uses Sonnet medium in every mode and is unavailable to Codex.
 
 Claude model aliases follow the newest model in their configured family. Codex
 profiles set minimum versions and resolve the newest account-visible model in
 the same tier through live `model/list`. Sol starts at `gpt-6.1-sol`; dispatch
-stops when a fresh eligible model cannot be verified. The runner uses Sol in
-every mode; specialist routing remains defined by the runtime.
+stops when a fresh eligible model cannot be verified. The Codex runner uses Sol
+in every mode and the Claude runner uses Opus at medium effort; specialist
+routing remains defined by the runtime.
 
 ## Execution and tools
 
@@ -66,10 +70,14 @@ instructions. This guard is a workflow boundary, not a security sandbox.
 `start-many` joins independent Codex or read-only Claude executions of one kind
 and checks retained ownership for writable Codex batches. Reports preserve
 complete execution receipts, including completed file changes, and `summary`
-reports actual intervals and usage. Multi-slice plans release `implemented`
-handoffs to unblock dependent work, then require consolidated final verification
-after all implementations are stable before tasks become `done`. Worker
-configuration is isolated from host hooks.
+reports actual intervals and usage. `report <run> --final` prints only
+`final.md`, one receipt line per completed tool action without output, and the
+execution summary; it caps each receipt command at 500 characters and adds a
+`stderr.log` tail only for a failed or interrupted run or one with evidence
+issues. Multi-slice plans release `implemented` handoffs to unblock dependent
+work, then require consolidated final verification after all implementations
+are stable before tasks become `done`. Worker configuration is isolated from
+host hooks.
 Only the exact user message `orchestrator off` clears persistent orchestration.
 
 ## Verification

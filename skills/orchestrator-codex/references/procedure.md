@@ -10,7 +10,7 @@ python3 "$HOME/.agents/orchestrator-runtime.py" new codex standard implementer
 Use the selected mode and role. Send `brief <run>` with a quoted heredoc, then
 `start <run>`. The runtime resolves the live model, effort and sandbox, feeds
 prompt.md on stdin and records events.jsonl, final.md and stderr.log. Read
-`report <run>` after completion. Use background execution only when the host
+`report <run> --final` after completion. Use background execution only when the host
 notifies this conversation on completion; a one-shot host waits for the result.
 Independent starts may be separate concurrent tool calls.
 

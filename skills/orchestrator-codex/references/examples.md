@@ -52,13 +52,13 @@ python3 "$HOME/.agents/orchestrator-runtime.py" new codex fast implementer
 ```
 
 Use the printed absolute run path in `brief <run> <<'BRIEF'` as tools.md shows.
-For a Codex host role, invoke `start <run>` and later `report <run>`. For a Claude
+For a Codex host role, invoke `start <run>` and later `report <run> --final`. For a Claude
 host role, dispatch the printed agent_type with Agent and the brief.
 
 For --visible, invoke `visible`, then `pane layout` and `pane split --direction
 right`. Use the returned pane ID in `start <run> --pane w1:p4`, and invoke
 `prompt <run>` with background execution and completion notification. Read
-`report <run>` for a writable role or `read-pane <run>` for a read-only role.
+`report <run> --final` for a writable role or `read-pane <run>` for a read-only role.
 These are separate runtime calls, not shell pipelines. Replace example paths
 and pane IDs with the literal returned values.
 
