@@ -1,20 +1,15 @@
-"""Exercise the compact runtime report and the guard's coordination tools without model calls."""
+"""Exercise the compact runtime report without model calls."""
 
 from contextlib import redirect_stdout
 import importlib.util
 import io
 import json
-import os
 from pathlib import Path
-import subprocess
-import sys
-import tempfile
 import unittest
 from unittest.mock import patch
 
-REPO = Path(__file__).resolve().parents[2]
-GUARD = REPO / "orchestrator/orchestrator-guard.py"
-RUNTIME = REPO / "orchestrator/orchestrator-runtime.py"
+BUNDLE = Path(__file__).resolve().parents[1]
+RUNTIME = BUNDLE / "orchestrator-runtime.py"
 
 
 def load(path, name):
@@ -60,7 +55,7 @@ class FinalReportTests(unittest.TestCase):
         catalog.start()
         self.addCleanup(catalog.stop)
 
-    def new_run(self, role="implementer"):
+    def new_run(self, role="reviewer"):
         with redirect_stdout(io.StringIO()) as output:
             runtime.main(["new", "codex", "standard", role])
         run = Path(json.loads(output.getvalue())["run"])
@@ -111,15 +106,6 @@ class FinalReportTests(unittest.TestCase):
         self.assertEqual(summary["evidence_issues"], [])
         self.assertEqual(summary["usage"], {"input_tokens": 10, "output_tokens": 4})
 
-    def test_failing_verifier_command_stays_visible_when_the_report_claims_success(self):
-        run = self.new_run(role="verifier")
-        self.write_run(run, status="completed", exit_code=0, final="All checks passed.", stderr="", receipts=0,
-                       extra=[command_receipt(1, "FAILED (failures=1)", command="python3 -m unittest -q", exit_code=1)])
-        _, output = self.report(run)
-        self.assertEqual(receipt_lines(output), [{
-            "run": str(run), "role": "verifier", "verifier_command": "python3 -m unittest -q",
-            "exit_code": 1, "receipt_id": "item_1", "output_truncated": False}])
-
     def test_command_over_500_characters_is_truncated_and_marked(self):
         # 21 long `python3 -c` receipts at a 2000-character cap overflowed the host output limit.
         run = self.new_run()
@@ -156,10 +142,10 @@ class FinalReportTests(unittest.TestCase):
 
     def test_evidence_issues_add_the_stderr_tail_and_exit_one(self):
         run = self.new_run()
-        self.write_run(run, status="completed", exit_code=0, final="Receipts: item_99\n", stderr="caveman: launching direct")
+        self.write_run(run, status="completed", exit_code=0, final="Receipts: item_99\n", stderr="codex: launching direct")
         result, output = self.report(run)
         self.assertEqual(result, 1)
-        self.assertIn("caveman: launching direct", output)
+        self.assertIn("codex: launching direct", output)
         summary = json.loads(output.splitlines()[-1])["execution_summary"]
         self.assertIn("Report cites receipt IDs absent from completed execution events", summary["evidence_issues"])
 
@@ -169,29 +155,6 @@ class FinalReportTests(unittest.TestCase):
         for options in (["--full"], ["--receipt", "item_1"]):
             with self.subTest(options=options), self.assertRaisesRegex(ValueError, "excludes --full and --receipt"):
                 self.report(run, *options)
-
-
-class GuardCoordinationTests(unittest.TestCase):
-    def setUp(self):
-        self.home = tempfile.TemporaryDirectory()
-        self.addCleanup(self.home.cleanup)
-
-    def hook(self, **values):
-        result = subprocess.run([sys.executable, str(GUARD)], input=json.dumps({
-            "session_id": "session-report", "hook_event_name": "PreToolUse", **values}),
-            text=True, capture_output=True, env={**os.environ, "HOME": self.home.name})
-        self.assertEqual(result.returncode, 0, result.stderr)
-        return json.loads(result.stdout) if result.stdout else {}
-
-    def test_orchestrator_may_read_notifications_and_the_compact_report(self):
-        self.hook(tool_name="Skill", tool_input={"skill": "orchestrator-claude"})
-        self.assertEqual(self.hook(tool_name="ReadNotifications", tool_input={}), {})
-        command = 'python3 "$HOME/.agents/orchestrator-runtime.py" report /tmp/orchestrator-run --final'
-        self.assertEqual(self.hook(tool_name="Bash", tool_input={"command": command}), {})
-        for tool in ("Read", "ReadMcpResourceTool", "WebFetch"):
-            with self.subTest(tool=tool):
-                decision = self.hook(tool_name=tool, tool_input={})
-                self.assertEqual(decision["hookSpecificOutput"]["permissionDecision"], "deny")
 
 
 if __name__ == "__main__":

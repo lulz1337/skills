@@ -27,9 +27,8 @@ SKIP_DIRS = {
 }
 
 TEST_NAME = re.compile(
-    r"(\.test\.|\.spec\.|_test\.[a-z]+$|^test_|Test\.[a-z]+$|_spec\.[a-z]+$)"
+    r"(\.test\.|\.spec\.|_test\.[a-z0-9]+$|^test_[^.]+\.[a-z0-9]+$|Test\.[a-z0-9]+$|_spec\.[a-z0-9]+$)", re.IGNORECASE
 )
-TEST_DIR = re.compile(r"(^|/)(tests?|__tests__|spec|e2e)(/|$)")
 
 DEFAULT_E2E = r"(^|/|\.)(e2e|end2end|end-to-end|acceptance|journeys?)(/|\.|$)"
 
@@ -53,11 +52,11 @@ LINE_CHECKS = [
         "(exempt only when the task names the log line as a contract)",
     ),
     (
-        "TD31", "MEDIUM", False,
+        "TD31", "MEDIUM", True,
         re.compile(
             r"(\btime\.sleep\b|\bThread\.sleep\b|\busleep\s*\(|\bsleep\s*\(\s*\d"
             r"|waitForTimeout\s*\(|setTimeout\s*\([^)]*,\s*\d{3,}"
-            r"|\bdelay\s*\(\s*\d{3,})"
+            r"|\bdelay\s*\(\s*\d{3,})", re.IGNORECASE
         ),
         "hardcoded sleep/timeout — await the event or control the clock",
     ),
@@ -122,16 +121,23 @@ TYPE_PREFIX = re.compile(r"([:<|&]\s*|\b(as|extends|implements|satisfies|keyof|i
 
 def is_test_file(path: str) -> bool:
     name = os.path.basename(path)
-    return bool(TEST_NAME.search(name)) or bool(TEST_DIR.search(path.replace(os.sep, "/")))
+    return name.endswith("_test.go") or bool(TEST_NAME.search(name))
 
 
 def discover(targets):
     files = []
+    def raise_walk_error(error):
+        raise error
+
     for target in targets:
         if os.path.isfile(target):
+            if not is_test_file(target):
+                raise ValueError(f"target is not a recognized test file: {target}")
             files.append(target)
             continue
-        for root, dirs, names in os.walk(target):
+        if not os.path.isdir(target):
+            raise FileNotFoundError(f"target does not exist: {target}")
+        for root, dirs, names in os.walk(target, onerror=raise_walk_error):
             dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
             for name in names:
                 path = os.path.join(root, name)
@@ -221,13 +227,31 @@ def review_file(path: str, e2e_re) -> dict:
         return {"file": path, "error": str(exc), "findings": [], "verdict": "ERROR"}
 
     normalized = path.replace(os.sep, "/")
+    basename = os.path.basename(normalized).lower()
+    layer_header = re.compile(r"^\s*(?://|#|/\*)\s*test-layer:\s*(load|contract|unit|integration)\b", re.I)
+    explicit_layer = None
+    for line in lines[:10]:
+        match = layer_header.match(line)
+        if match:
+            explicit_layer = match.group(1).lower()
+            break
     is_e2e = bool(e2e_re.search(normalized))
+    # k6 workload entry points are commonly plain .js files; .test.mjs files
+    # in the same tree are runner tests and retain ordinary test heuristics.
+    is_runner_test = basename.endswith(".test.mjs")
+    is_load = explicit_layer == "load" or (not is_runner_test and bool(
+        re.search(r"(^|/)(load|loads|performance|perf|benchmark)(/|\.)|\bk6\b", normalized, re.I)
+    ))
+    is_contract = explicit_layer == "contract" or bool(re.search(r"(^|/)(contract|contracts|provider|consumer)(/|\.)", normalized, re.I))
+    is_unit = explicit_layer == "unit" or bool(re.search(r"(^|/)(unit|units)(/|\.)", normalized, re.I))
     findings = []
 
     for i, line in enumerate(lines, 1):
         if COMMENT.match(line):
             continue
         for rule, severity, verify, pattern, message in LINE_CHECKS:
+            if is_load and rule in {"TD21", "TD31", "TD32"}:
+                continue
             if pattern.search(line):
                 findings.append((rule, severity, verify, i, message))
         if is_e2e:
@@ -237,16 +261,20 @@ def review_file(path: str, e2e_re) -> dict:
                     "double inside an e2e spec — unmock it or reclassify the "
                     "spec as integration",
                 ))
-        else:
+        elif is_unit:
             if INFRA.search(line):
                 findings.append((
-                    "TD21", "BLOCKER", True, i,
-                    "appears to reach real infrastructure from a non-e2e "
-                    "test — every input must be supplied by the test",
+                    "TD21", "MEDIUM", True, i,
+                    "unit-labelled test appears to reach infrastructure; verify the layer and whether isolated infrastructure semantics are the subject",
                 ))
 
+    if path.lower().endswith("_test.go"):
+        for i, line in enumerate(lines, 1):
+            if re.search(r"\bt\.(?:Skip|Skipf|SkipNow)\s*\(", line):
+                findings.append(("TD41", "HIGH", True, i, "skipped Go test; resolve or report the deferred behavior"))
+
     findings.extend(check_type_only_imports(path, lines))
-    if not is_e2e:
+    if not is_e2e and not is_load and not is_contract:
         # e2e specs legitimately import only the test framework and drive
         # the application from outside, so TD11 does not apply there.
         findings.extend(check_third_party_only(path, lines))
@@ -254,7 +282,7 @@ def review_file(path: str, e2e_re) -> dict:
     findings.sort(key=lambda f: (SEVERITY_ORDER[f[1]], f[3]))
     return {
         "file": path,
-        "layer": "e2e" if is_e2e else "unit/integration",
+        "layer": "e2e" if is_e2e else "load" if is_load else "contract" if is_contract else "unit-labelled" if is_unit else "unit/integration",
         "findings": [
             {"rule": r, "severity": s, "verify": v, "line": ln, "message": m}
             for r, s, v, ln, m in findings
@@ -269,15 +297,25 @@ def main() -> int:
     parser.add_argument("--e2e-pattern", default=DEFAULT_E2E,
                         help="regex classifying a path as e2e")
     parser.add_argument("--json", action="store_true", dest="as_json")
+    parser.add_argument("--allow-empty", action="store_true", help="allow an empty directory when coverage is intentionally optional")
     args = parser.parse_args()
 
     e2e_re = re.compile(args.e2e_pattern)
-    files = discover(args.targets)
+    try:
+        files = discover(args.targets)
+    except (OSError, ValueError) as exc:
+        print(f"review_tests: {exc}", file=sys.stderr)
+        return 2
     if not files:
         print("no test files found", file=sys.stderr)
-        return 0
+        return 0 if args.allow_empty else 2
 
     results = [review_file(path, e2e_re) for path in files]
+    errors = [result for result in results if result.get("error")]
+    if errors:
+        for result in errors:
+            print(f"review_tests: {result['file']}: {result['error']}", file=sys.stderr)
+        return 2
     worst = min(
         (SEVERITY_ORDER[f["severity"]] for r in results for f in r["findings"]),
         default=99,

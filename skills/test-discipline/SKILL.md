@@ -1,23 +1,24 @@
 ---
 name: test-discipline
 description: >-
-  Test hygiene and test-pyramid discipline when writing, editing, or deleting
-  files whose names contain .spec or .test. Do not load this skill for reading
-  or reviewing tests, discussing test strategy, running a test suite, changing
-  source code without changing a matching test file, or files that use another
-  naming convention. Every activation ends with a severity-graded review that
-  marks changed tests OK / FIX / DELETE and names tests that are MISSING.
+  Test hygiene and review when creating, editing, or deleting recognized test
+  files, including .spec/.test, Go _test.go and established language test
+  names. Also use when explicitly asked to review tests. Do not activate for
+  reading tests, running tests, strategy discussion, or source-only changes.
+  End activated work with a severity-graded review and behavior gaps.
 ---
 
 # Test Discipline
 
 ## Scope
 
-Load this skill only when the task creates, changes, or deletes a file whose
-name contains `.spec` or `.test`, such as `checkout.spec.ts` or
-`pricing.test.tsx`. Do not activate it for read-only test work, test strategy
-questions, test execution, or test files named only with conventions such as
-`test_checkout.py`, `checkout_test.go`, or `CheckoutTest.java`.
+Load this skill when a task creates, changes, or deletes test code using the
+repository's convention: `.spec.*`, `.test.*`, Go `_test.go`, Python `test_*.py`
+or `*_test.py`, Java `*Test.java`, and analogous established runner patterns.
+Also load it for an explicit request to review tests. A filename mentioned in
+the request, a read-only inspection, test execution, strategy discussion, or
+source-only change does not activate it. Identify actual changed paths from
+tool results or the diff; do not infer a mutation from text in a shell command.
 
 Agents write too many tests at the wrong layer, and the failure mode is always
 the same: the agent writes tests **for itself** — to prove its own
@@ -39,9 +40,10 @@ the test has negative value: pure maintenance cost. Delete it.
 
 ## Non-negotiable outcome: the review
 
-Every activation of this skill ends with a **Test Review** of the `.spec` and
-`.test` files created, changed, or deleted during the task. Never end such a
-task with only "done, tests pass".
+After changing a recognized test file or when explicitly asked to review tests,
+end with a **Test Review** of the relevant files. If inspection shows the
+requested behavior is already covered and no change is needed, explain the
+no-op without adding tests or manufacturing a review section.
 
 The workflow:
 
@@ -58,12 +60,15 @@ The workflow:
    severity, rule ID, and file:line, and gives each file a provisional
    verdict. Findings marked "verify" are suspicions, not convictions —
    confirm or dismiss them yourself.
+   For JSON fixture/schema work, follow [`rules/fixtures.md`](rules/fixtures.md)
+   and validate only files declared in the manifest; do not scan every file
+   under a `tests/` directory as executable test code.
 3. **Do the semantic review** the checker cannot do: wrong layer, scenario
-   duplication across layers, missing unit tests for changed business logic,
+   duplication across layers, important behavior gaps,
    third-party subjects hidden behind helpers, infrastructure reached through
    indirection. Read the rule files relevant to what you found:
    - [`rules/layers.md`](rules/layers.md) — choosing the layer, duplication,
-     e2e budget, mandatory unit tests (TD01–TD04)
+     e2e budget, load tests, behavior gaps (TD01–TD04)
    - [`rules/scope.md`](rules/scope.md) — what a test must never test: logs,
      third-party dependencies, the implementation itself (TD10–TD14)
    - [`rules/isolation.md`](rules/isolation.md) — what each layer may touch:
@@ -73,22 +78,25 @@ The workflow:
      type-only imports, shallow module graphs, no sleeps (TD30–TD32)
    - [`rules/failures.md`](rules/failures.md) — what to do with a red test;
      never weaken one to green (TD40–TD41)
-4. **Emit the report** in the format below.
-5. **Act on the verdicts** within the task's scope: fix and create freely;
-   delete tests you wrote in this session freely; for pre-existing tests,
-   recommend deletion with the rule and reasoning and let the user confirm —
-   they may know a contract you cannot see.
+   - [`rules/fixtures.md`](rules/fixtures.md) — declared JSON schemas,
+     fixtures, and deterministic generated artifacts
+4. **Emit the report** in the format below. Mark heuristics as suspicions and
+confirm them against behavior and layer before assigning a finding.
+5. **Act within scope.** Fix newly written defects. Do not silently delete
+   pre-existing security, compatibility, or external-contract tests; explain
+   the evidence and recommend a change. Preserve tests guarding different
+   failures even when they exercise the same path at different layers.
 
 ## Severity
 
 - **BLOCKER** — the test is actively harmful: it passes while the app is
   broken, breaks while the app is fine, or burns machine time for nothing.
   Log assertions (TD10), third-party subjects (TD11), mocked e2e (TD20),
-  infrastructure reached from integration/functional tests (TD21), tests
-  weakened to go green (TD41).
+  tests weakened to go green (TD41). Infrastructure findings need a layer
+  and isolation review; real isolated resources may be the contract under test.
 - **HIGH** — wrong or missing value: implementation mirrors (TD12), the same
-  scenario duplicated across layers (TD02), business logic without a unit
-  test (TD04), focused/skipped tests left committed (TD41), an e2e spec that
+  scenario duplicated across layers (TD02), focused/skipped tests left
+  committed (TD41), an e2e spec that
   is not a critical journey (TD03), UI driven through internals — structural
   selectors, synthetic events, direct handler calls — instead of the way the
   user drives it (TD23; pure-logic unit tests are exempt).
@@ -109,13 +117,13 @@ ALWAYS use this exact structure (prose around it is fine):
 |------|---------|----------|
 | src/pricing.test.ts | FIX | TD10 BLOCKER line 42 — asserts a log message; TD30 MEDIUM line 3 — value import used only as a type |
 | src/api/orders.spec.ts | OK | — |
-| e2e/checkout.spec.ts | DELETE | TD20 BLOCKER — network mocked inside an e2e journey; scenario already covered at integration layer |
+| e2e/checkout.spec.ts | DELETE | TD20 BLOCKER — network mocked inside an e2e journey; the user-visible journey is already covered elsewhere |
 
 **Missing (CREATE):**
-- unit: `calculateDiscount` — branches for negative quantity and max-cap are untested (TD04)
+- behavior: discounts above the order cap are not shown clamped in any observable outcome (TD04)
 
 **Summary:** 1 BLOCKER, 0 HIGH, 1 MEDIUM. Recommend: fix pricing.test.ts,
-delete e2e/checkout.spec.ts (needs confirmation — pre-existing), add 1 unit test.
+recommend review of the pre-existing e2e spec, add coverage for the cap behavior at its narrowest useful layer.
 ```
 
 Verdicts: **OK** (leave alone), **FIX** (edit — say what), **DELETE** (negative
@@ -125,15 +133,20 @@ applicable.
 
 ## The layers in one breath
 
-- **unit** — pure input → output, no I/O, no doubles. The only layer with no
-  budget; every function with decisions inside gets one.
-- **integration** (backends often call this **functional**) — a module's
-  behaviour through its public interface with **every input supplied by the
-  test**: database replaced by fixtures/fakes, network stubbed at the
-  boundary, clock fixed. It never reaches real infrastructure. This is the
-  workhorse layer for edge cases and error branches.
-- **e2e** — few, sacred, unmocked. Real system, real wiring, critical user
-  journeys only. A mocked e2e test is a lie.
+- **unit** — focused behavior with supplied inputs; doubles are usually
+  unnecessary. Add tests when they protect meaningful behavior, not once per
+  function or branch.
+- **integration** (often **functional**) — behavior through public interfaces.
+  Usually control external inputs at boundaries. Real isolated infrastructure
+  is valid when database constraints, RLS, transaction rollback, migrations,
+  or provider behavior is the subject.
+- **contract** — compatibility at a producer/consumer or provider boundary;
+  keep schema integrity, provider conformance, and business behavior distinct.
+  A mock matching a schema does not prove the runtime provider conforms.
+- **load** — performance behavior under bounded, representative workload; use
+  the load rules in `rules/layers.md`.
+- **e2e** — real wiring for critical user journeys. A mocked test is not proof
+  of the deployed journey.
 
 **The golden rule:** if a test can be written as an integration/functional
 test with supplied inputs, it should be. When in doubt, push DOWN the pyramid,
@@ -144,11 +157,13 @@ never up. Details and the classification questions: `rules/layers.md`.
 - [ ] The Test Review report is in my final message.
 - [ ] Every touched test is classified and placed by this repo's convention.
 - [ ] No test asserts on logs; no test's subject is a third-party dependency.
-- [ ] Nothing labelled e2e contains a double; nothing labelled
-      integration/functional touches real infrastructure.
+- [ ] E2e tests use real wiring; integration/functional tests may use real
+      infrastructure when it is isolated and infrastructure behavior is the subject.
 - [ ] UI tests locate by role/label/visible text and interact through user
       actions; logic is unit-tested directly, not through the UI.
-- [ ] Type-only needs use type-only imports; no sleeps; suites stay fast.
-- [ ] Every changed pure business-logic function has a unit test.
+- [ ] Type-only needs use type-only imports; replace arbitrary waits with
+      controls such as fake timers, while retaining justified load think time.
+- [ ] Each kept test protects a concrete business rule or external contract
+      with an observable outcome; no test-count target or per-function quota.
 - [ ] For every kept test I can state the real failure it catches.
 - [ ] No scenario is duplicated across layers.

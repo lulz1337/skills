@@ -1,4 +1,4 @@
-# Isolation: what each layer may touch (TD20–TD22)
+# Isolation: what each layer may touch (TD20–TD23)
 
 The three layers differ in exactly one dimension: **how much of the real
 world the test is allowed to reach**. Everything else follows from it.
@@ -6,7 +6,7 @@ world the test is allowed to reach**. Everything else follows from it.
 | Layer | May reach | Must supply |
 |-------|-----------|-------------|
 | unit | nothing — pure input → output | nothing (no doubles; needing one means it is not a unit test) |
-| integration / functional | in-process code up to the boundary | **every input**: data, time, network responses, configuration |
+| integration / functional | in-process code and isolated real infrastructure when its semantics matter | data, time, responses, and configuration not under test |
 | e2e | everything, for real | nothing may be substituted |
 
 ## TD20 — e2e is unmocked, always (BLOCKER)
@@ -23,28 +23,36 @@ API, its CLI), not by reaching into internals. Prefer auto-retrying
 assertions over fixed waits; never swallow errors to keep a journey green —
 both produce false passes.
 
-## TD21 — integration/functional tests supply everything, reach nothing (BLOCKER)
+## TD21 — isolate infrastructure unless its behavior is the subject
 
 Backends often call this layer **functional tests**; frontends call it
 integration. Same contract either way:
 
-- **Every input is supplied by the test**: the database is replaced by
-  fixtures, fakes, or an in-memory substitute; every external response is
-  stubbed at the boundary; the clock is fixed; configuration is explicit.
-- **The test never reaches real infrastructure**: no live database, no
-  network call leaving the process, no message broker, no third-party
-  service, no shared filesystem state (temp dirs owned by the test are
-  fine). A test that needs infrastructure standing up is either an e2e test
-  in the wrong folder or a flake generator.
+- Normally supply external inputs at boundaries: response data, time,
+  configuration, and randomness. Use test-owned isolated resources and
+  deterministic cleanup.
+- Real isolated infrastructure is appropriate when its semantics are under
+  test: database constraints, RLS, rollback, migrations, locking, or broker
+  delivery. Make isolation, ownership, and cleanup explicit; never mutate
+  shared developer or production state.
 
-Why so strict: supplied inputs are what make this layer deterministic, fast,
-and parallel-safe — the properties that let it host hundreds of edge-case
-scenarios that would be unaffordable at e2e. Every infrastructure touch
-trades all three away and gains nothing the e2e layer doesn't already cover.
+Prefer supplied inputs for broad edge-case coverage. Do not classify a test
+as harmful merely because its path or source mentions a database or server;
+verify whether it is isolated and what contract it proves.
 
-This is the workhorse layer: error branches, permission failures, retries,
-empty states, validation, calculated fields — anything that benefits from
-simulating **varied inputs deterministically**.
+This is the workhorse layer for behavior with varied inputs. Keep provider
+conformance, schema integrity, and business behavior as separate claims. A
+consumer test against a mock proves the consumer's expectation; only a
+provider verification or real contract exchange proves provider conformance.
+Do not add Pact solely to satisfy this guidance.
+
+See [Pact consumer and provider testing](https://docs.pact.io/).
+
+Go tests use the standard [`testing`](https://pkg.go.dev/testing) package and
+follow the repository's package and legal import placement. Prefer meaningful
+table cases when they clarify distinct business outcomes. Exercise real domain
+aggregates; fix business time explicitly and use doubles only at external
+boundaries. Use isolated real infrastructure when its behavior is the subject.
 
 ## TD22 — double the boundary, never the internals (HIGH)
 

@@ -1,14 +1,14 @@
-# Shared orchestrator runtime
+# Orchestrator runtime
 
-This bundle supplies all three orchestrator skills. It contains the execution
-runtime, worker definitions, model profiles, session guard and free tests.
-It runs independently of the author's dotfiles checkout.
+This bundle supplies the [orchestrator skill](../skills/orchestrator/): the
+installer, the Codex run runtime and its free tests. It runs without the
+author's dotfiles checkout.
 
 ## Install from this repository
 
-Use Python 3.10 or newer on Linux or macOS. Authenticate Claude Code and Codex
-separately. Codex execution uses `caveman` when installed; an explicitly reported
-direct run can use the runtime's `--bypass-caveman` option. Herdr is optional.
+Use Python 3.10 or newer on Linux or macOS. The default and `--codex` reviewers
+need the `codex` CLI, authenticated. `--claude` needs only Claude Code. Herdr is
+optional and used only with `--visible`.
 
 From the repository root:
 
@@ -16,69 +16,34 @@ From the repository root:
 python3 orchestrator/install.py
 ```
 
-The installer copies the three skills, Claude workers, Codex roles and runtime
-into the user's agent directories. It merges session guards into Claude settings
-and Codex hooks, preserving other hooks and skills. Restart Claude Code. In native
-Codex, start with `codex --enable hooks` and review and trust the new hooks in
-`/hooks`. Hook enforcement requires enabled, trusted hooks.
+The installer copies:
 
-The skills CLI and Claude plugins install skill packages, but the shared runtime
-still needs the command above. If another checkout manages a destination through
-a symlink, update that owning checkout; the installer refuses to write through
-changed symlink targets. `--home <directory>` supports an isolated installation;
+| Source | Destination |
+| --- | --- |
+| `skills/orchestrator/` | `~/.agents/skills/orchestrator`, `~/.claude/skills/orchestrator` |
+| `skills/orchestrator/agents/*.md` | `~/.claude/agents/` |
+| `skills/orchestrator/roles/` | `~/.agents/codex-agents/` |
+| `orchestrator/orchestrator-runtime.py` | `~/.agents/orchestrator-runtime.py` |
+
+It also removes a version 2 installation: the orchestrator-claude, -codex and
+-hybrid skills, their retired agents and roles, `~/.agents/orchestrator-guard.py`
+and the guard handlers in `~/.claude/settings.json` and Codex `hooks.json`.
+Other hooks, skills and agents stay. Restart Claude Code afterwards.
+
+If another checkout manages a destination through a symlink, update that
+checkout; the installer refuses to write or delete through a symlink and
+changes nothing. `--home <directory>` installs into a separate home;
 `--codex-home <directory>` selects a separate Codex configuration directory.
 
-## Roles and models
+## Runtime
 
-| Role | Duty |
-| --- | --- |
-| scout | Locate instructions, sources, callers and evidence |
-| researcher | Reconcile sources and answer research questions |
-| implementer | Make the bounded change in owned files |
-| runner | Execute a prescribed mechanical sequence |
-| verifier | Run exact checks and report their output and exit status |
-| browser | Observe a named UI flow |
-| reviewer | Review the stable final revision |
-| oracle | Diagnose an unresolved failure |
-| sage | Advise on an architectural decision |
-| critic | Challenge a material claim independently |
-| publisher | Build and publish an Artifact page from supplied files (Claude and hybrid) |
-
-Each role has quick, fast, standard and comprehensive variants. Quick excludes
-reviewer and critic. Claude uses Claude workers; Codex uses Codex workers. Hybrid
-splits the work by frontier: Claude Opus implements and runs prescribed
-commands, Claude sage advises and Claude publisher publishes; Codex reviews,
-critiques, verifies, diagnoses and handles discovery, research and browser work.
-The hybrid reviewer and critic use Sol at high effort in every reviewed mode.
-Publisher uses Sonnet medium in every mode and is unavailable to Codex.
-
-Claude model aliases follow the newest model in their configured family. Codex
-profiles set minimum versions and resolve the newest account-visible model in
-the same tier through live `model/list`. Sol starts at `gpt-6.1-sol`; dispatch
-stops when a fresh eligible model cannot be verified. The Codex runner uses Sol
-in every mode and the Claude runner uses Opus at medium effort; specialist
-routing remains defined by the runtime.
-
-## Execution and tools
-
-The controller briefs, dispatches, decides and reports. Workers read and search
-the repository, edit owned files and inspect external sources. The verifier owns
-tests, typechecks, lint and builds. The session guard enforces this separation on
-local tool hooks while orchestration is active; hosted tools remain governed by
-instructions. This guard is a workflow boundary, not a security sandbox.
-
-`start-many` joins independent Codex or read-only Claude executions of one kind
-and checks retained ownership for writable Codex batches. Reports preserve
-complete execution receipts, including completed file changes, and `summary`
-reports actual intervals and usage. `report <run> --final` prints only
-`final.md`, one receipt line per completed tool action without output, and the
-execution summary; it caps each receipt command at 500 characters and adds a
-`stderr.log` tail only for a failed or interrupted run or one with evidence
-issues. Multi-slice plans release `implemented` handoffs to unblock dependent
-work, then require consolidated final verification after all implementations
-are stable before tasks become `done`. Worker configuration is isolated from
-host hooks.
-Only the exact user message `orchestrator off` clears persistent orchestration.
+`orchestrator-runtime.py` creates, starts and reads Codex reviewer and critic
+runs: `instructions`, `new`, `brief`, `start`, `report <run> --final` and
+`summary`. The skill's [Codex reference](../skills/orchestrator/references/codex.md)
+lists the exact commands. The reviewer and the critic use Sol at high effort in
+every reviewed mode. The runtime resolves the newest account-visible model in
+that tier through `model/list` and falls back to the profile model when the
+check fails, saying so in `model_source`.
 
 ## Verification
 
@@ -86,12 +51,6 @@ Only the exact user message `orchestrator off` clears persistent orchestration.
 python3 -m unittest discover -s orchestrator/tests
 ```
 
-These tests use stub processes and disposable homes. They spend no model budget.
-They cover all supported role contracts, model selection, guards, batching,
-evidence preservation and installation. CI runs the same command.
-
-The imported [session evaluation](evidence/ORCHESTRATOR-SESSION-2026-10-02.md)
-and [score summary](evidence/ORCHESTRATOR-SESSION-2026-10-02.json) were measured in
-the dotfiles repository at commit `b7d6d0f`. They are historical evidence, not a
-fresh paid evaluation of this packaging change. Rejected prompt rewrites remain
-rejected; this repository carries the approved original worker definitions.
+The tests use stub processes and disposable homes and spend no model budget.
+They cover run creation, model selection, reports, receipts, installation and
+the removal of version 2. CI runs the same command.

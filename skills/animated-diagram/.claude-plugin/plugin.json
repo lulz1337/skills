@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "animated-diagram",
+  "description": "Create looping animated diagrams of service requests, API calls, data pipelines and agent workflows in the diagram-design theme.",
+  "version": "1.0.0",
+  "author": {
+    "name": "lulz1337",
+    "url": "https://github.com/lulz1337"
+  },
+  "homepage": "https://github.com/lulz1337/skills",
+  "repository": "https://github.com/lulz1337/skills",
+  "license": "MIT",
+  "keywords": ["diagrams", "animation", "svg", "architecture", "agents"]
+}

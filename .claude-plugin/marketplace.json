@@ -17,14 +17,14 @@
     {
       "name": "diagram-design",
       "source": "./skills/diagram-design",
-      "description": "Create branded diagrams as standalone HTML/SVG/PNG in 39 visual types, with brand onboarding and draw.io/Mermaid import.",
+      "description": "Create branded diagrams as standalone HTML/SVG/PNG in 45 visual types, with brand onboarding and draw.io, Mermaid and Excalidraw import.",
       "license": "MIT",
       "keywords": ["diagrams", "architecture", "flowchart", "svg", "charts", "design-system"]
     },
     {
       "name": "test-discipline",
       "source": "./skills/test-discipline",
-      "description": "Test hygiene for changed .spec and .test files, with severity-graded OK / FIX / DELETE / MISSING reviews.",
+      "description": "Test hygiene for changed tests (.spec/.test, Go _test.go, Python test_*.py, Java *Test.java and similar), with severity-graded OK / FIX / DELETE / MISSING reviews.",
       "license": "MIT",
       "keywords": ["testing", "test-pyramid", "hygiene", "review", "quality", "e2e"]
     },
@@ -43,25 +43,18 @@
       "keywords": ["video", "agent-browser", "recording", "demo", "verification", "browser"]
     },
     {
-      "name": "orchestrator-claude",
-      "source": "./skills/orchestrator-claude",
-      "description": "Run a task as an orchestrator over Claude subagents: a worker executes and, from fast up, a reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-claude.",
+      "name": "animated-diagram",
+      "source": "./skills/animated-diagram",
+      "description": "Create looping animated diagrams of service requests, API calls, data pipelines and agent workflows in the diagram-design theme.",
       "license": "MIT",
-      "keywords": ["orchestration", "subagents", "delegation", "review", "claude"]
+      "keywords": ["diagrams", "animation", "svg", "architecture", "agents"]
     },
     {
-      "name": "orchestrator-codex",
-      "source": "./skills/orchestrator-codex",
-      "description": "Run a task as an orchestrator over Codex processes: a worker executes and, from fast up, a reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses them. Use only when the user asks for /orchestrator-codex.",
+      "name": "orchestrator",
+      "source": "./skills/orchestrator",
+      "description": "Run a task in one main agent loop with an independent review: the main thread scopes, implements and verifies; from fast up a Codex or Claude reviewer reviews the final diff. Use only when the user asks for /orchestrator.",
       "license": "MIT",
-      "keywords": ["orchestration", "codex", "delegation", "review", "openai"]
-    },
-    {
-      "name": "orchestrator-hybrid",
-      "source": "./skills/orchestrator-hybrid",
-      "description": "Run a task as an orchestrator over a mixed pair: a Claude Opus worker implements and, from fast up, a Codex Sol reviewer reviews; the mode (quick, fast, standard, comprehensive) chooses the rest. Use only when the user asks for /orchestrator-hybrid.",
-      "license": "MIT",
-      "keywords": ["orchestration", "codex", "subagents", "delegation", "review", "claude", "openai"]
+      "keywords": ["orchestration", "review", "subagents", "codex", "claude"]
     }
   ]
 }

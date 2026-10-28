@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A request through an agent</title>
+{{FONT_LINK}}
+<style>
+  :root {
+    {{THEME}}
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 20px; background: var(--paper); color: var(--ink); font-family: var(--font-sans); }
+  main { max-width: 1040px; margin: 0 auto; }
+  h1 { font: 400 36px var(--font-serif); margin: 12px 0; }
+  .eyebrow, .sub, .label { font-family: var(--font-mono); fill: var(--muted); }
+  .eyebrow { color: var(--muted); font-size: 11px; letter-spacing: .12em; }
+  .scroll { overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 1000px; }
+  .node { fill: var(--paper-2); stroke: var(--muted); stroke-width: 1; }
+  .agent { fill: var(--accent-tint); stroke: var(--accent); }
+  .route { fill: none; stroke: var(--muted); stroke-width: 1.5; marker-end: url(#request-arrow); }
+  .name { fill: var(--ink); font: 600 16px var(--font-sans); }
+  .sub, .label { font-size: 11px; }
+  .mask { fill: var(--paper); }
+  .packet { fill: var(--accent); opacity: 0; }
+  .motion-ready .packet { animation-duration: 8s; animation-timing-function: linear; animation-iteration-count: infinite; }
+  .motion-ready .p1 { animation-name: request; }
+  .motion-ready .p2 { animation-name: dispatch; }
+  .motion-ready .p3 { animation-name: call; }
+  .motion-ready .p4 { animation-name: result; }
+  .motion-ready .p5 { animation-name: answer; }
+  .motion-ready .p6 { animation-name: deliver; }
+  @keyframes request { 0% { opacity: 0; transform: translate(220px, 180px); } 1% { opacity: 1; } 12% { opacity: 1; transform: translate(300px, 180px); } 13%, 100% { opacity: 0; transform: translate(300px, 180px); } }
+  @keyframes dispatch { 0%, 16% { opacity: 0; transform: translate(460px, 180px); } 17% { opacity: 1; } 28% { opacity: 1; transform: translate(540px, 180px); } 29%, 100% { opacity: 0; transform: translate(540px, 180px); } }
+  @keyframes call { 0%, 32% { opacity: 0; transform: translate(700px, 180px); } 33% { opacity: 1; } 44% { opacity: 1; transform: translate(780px, 180px); } 45%, 100% { opacity: 0; transform: translate(780px, 180px); } }
+  @keyframes result { 0%, 48% { opacity: 0; transform: translate(780px, 216px); } 49% { opacity: 1; } 60% { opacity: 1; transform: translate(700px, 216px); } 61%, 100% { opacity: 0; transform: translate(700px, 216px); } }
+  @keyframes answer {
+    0%, 64% { opacity: 0; transform: translate(540px, 216px); }
+    65% { opacity: 1; }
+    74% { opacity: 1; transform: translate(460px, 216px); }
+    75%, 100% { opacity: 0; transform: translate(460px, 216px); }
+  }
+  @keyframes deliver {
+    0%, 76% { opacity: 0; transform: translate(380px, 236px); }
+    77% { opacity: 1; transform: translate(380px, 236px); }
+    79% { transform: translate(380px, 292px); }
+    79.3% { transform: translate(378px, 298px); }
+    79.6% { transform: translate(372px, 300px); }
+    87.4% { transform: translate(148px, 300px); }
+    87.7% { transform: translate(142px, 298px); }
+    88% { transform: translate(140px, 292px); }
+    89% { opacity: 1; transform: translate(140px, 236px); }
+    90%, 100% { opacity: 0; transform: translate(140px, 236px); }
+  }
+  button { min-height: 44px; min-width: 88px; border: 1px solid var(--muted); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  [hidden] { display: none !important; }
+  #status { color: var(--muted); font-size: 13px; }
+  ol { line-height: 1.7; padding-left: 24px; }
+  @media (prefers-reduced-motion: reduce) {
+    .packet { animation: none !important; display: none; }
+    #controls { display: none; }
+  }
+  @media print {
+    .packet, #controls, #status { display: none; }
+    .scroll { overflow: visible; }
+    svg { min-width: 0; }
+  }
+</style>
+<main>
+  <p class="eyebrow">REQUEST LIFECYCLE · ILLUSTRATIVE</p>
+  <h1>A request through an agent</h1>
+  <p>One tool call, then a response. The 8-second loop shows order, not measured latency.</p>
+  <div class="scroll">
+    <svg viewBox="0 0 1000 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="request-title request-desc">
+      <title id="request-title">A request through an agent</title>
+      <desc id="request-desc">A client sends a request to the API, which dispatches an agent. The agent calls a tool, receives its result, and answers the client through the API.</desc>
+      <defs><marker id="request-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="var(--muted)"/></marker></defs>
+      <g class="route">
+        <path d="M220 180H300"/><path d="M460 180H540"/>
+        <path d="M700 180H780"/><path d="M780 216H700"/>
+        <path d="M540 216H460"/>
+        <path d="M380 236V292Q380 300 372 300H148Q140 300 140 292V236"/>
+      </g>
+      <g class="label" text-anchor="middle">
+        <text x="260" y="156">1 REQUEST</text><text x="500" y="156">2 DISPATCH</text>
+        <text x="740" y="156">3 CALL</text><text x="740" y="244">4 RESULT</text>
+        <text x="500" y="244">5 REPLY</text><text x="260" y="324">6 ANSWER</text>
+      </g>
+      <rect class="node" x="60" y="164" width="160" height="72" rx="6"/>
+      <rect class="node" x="300" y="164" width="160" height="72" rx="6"/>
+      <rect class="node agent" x="540" y="164" width="160" height="72" rx="6"/>
+      <rect class="node" x="780" y="164" width="160" height="72" rx="6"/>
+      <g text-anchor="middle">
+        <text class="name" x="140" y="192">Client</text><text class="sub" x="140" y="216">user request</text>
+        <text class="name" x="380" y="192">API</text><text class="sub" x="380" y="216">POST /ask</text>
+        <text class="name" x="620" y="192">Agent</text><text class="sub" x="620" y="216">choose a tool</text>
+        <text class="name" x="860" y="192">Tool</text><text class="sub" x="860" y="216">fetch context</text>
+      </g>
+      <g aria-hidden="true" focusable="false">
+        <rect class="packet p1" x="-3" y="-3" width="6" height="6" rx="1"/>
+        <rect class="packet p2" x="-3" y="-3" width="6" height="6" rx="1"/>
+        <rect class="packet p3" x="-3" y="-3" width="6" height="6" rx="1"/>
+        <rect class="packet p4" x="-3" y="-3" width="6" height="6" rx="1"/>
+        <rect class="packet p5" x="-3" y="-3" width="6" height="6" rx="1"/>
+        <rect class="packet p6" x="-3" y="-3" width="6" height="6" rx="1"/>
+      </g>
+    </svg>
+  </div>
+  <div id="controls" hidden><button id="toggle" type="button">Pause</button> <button id="replay" type="button">Replay</button></div>
+  <p id="status" role="status" aria-live="polite">Static diagram. Each numbered arrow is one event.</p>
+  <ol><li>Client sends a request.</li><li>API dispatches the agent.</li><li>Agent calls the tool; the tool returns context.</li><li>Agent replies to the API.</li><li>API answers the client; the loop rests before repeating.</li></ol>
+</main>
+<script>
+(() => {
+  const root = document.querySelector('main');
+  const controls = document.querySelector('#controls');
+  const toggle = document.querySelector('#toggle');
+  const status = document.querySelector('#status');
+  const preference = matchMedia('(prefers-reduced-motion: reduce)');
+  const query = new URLSearchParams(location.search);
+  const staticMode = query.get('motion') === 'static';
+  const frame = query.get('time');
+  const frameTime = frame !== null && /^\d+(\.\d+)?$/.test(frame) ? Number(frame) : NaN;
+  let animations = [];
+  let playing = false;
+  let loopSeconds = 0;
+  function setPlaying(value, announce = true) {
+    playing = value;
+    animations.forEach(animation => value ? animation.play() : animation.pause());
+    toggle.textContent = value ? 'Pause' : 'Play';
+    if (announce) status.textContent = value ? `Playing. Loop: ${loopSeconds} seconds.` : 'Paused.';
+  }
+  function initialize() {
+    animations.forEach(animation => animation.cancel());
+    root.classList.remove('motion-ready');
+    controls.hidden = true;
+    playing = false;
+    if (staticMode || preference.matches) {
+      status.textContent = preference.matches ? 'Reduced motion: complete static diagram.' : 'Complete static diagram.';
+      return;
+    }
+    root.classList.add('motion-ready');
+    animations = root.getAnimations({ subtree: true });
+    loopSeconds = animations[0].effect.getTiming().duration / 1000;
+    animations.forEach(animation => { animation.pause(); animation.currentTime = 0; });
+    controls.hidden = false;
+    if (Number.isFinite(frameTime) && frameTime >= 0 && frameTime < loopSeconds) {
+      animations.forEach(animation => { animation.currentTime = frameTime * 1000; });
+      setPlaying(false, false);
+      status.textContent = `Paused at ${frameTime} seconds.`;
+    } else setPlaying(!document.hidden);
+  }
+  toggle.addEventListener('click', () => setPlaying(!playing));
+  document.querySelector('#replay').addEventListener('click', () => {
+    animations.forEach(animation => { animation.currentTime = 0; });
+    setPlaying(true);
+  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && playing) setPlaying(false); });
+  preference.addEventListener('change', initialize);
+  initialize();
+})();
+</script>
+</html>

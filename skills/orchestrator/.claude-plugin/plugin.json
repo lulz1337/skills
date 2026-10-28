@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "orchestrator",
+  "description": "Run a task in one main agent loop with an independent review: the main thread scopes, implements and verifies; from fast up a Codex or Claude reviewer reviews the final diff. Use only when the user asks for /orchestrator.",
+  "version": "3.0.0",
+  "author": {
+    "name": "lulz1337",
+    "url": "https://github.com/lulz1337"
+  },
+  "homepage": "https://github.com/lulz1337/skills",
+  "repository": "https://github.com/lulz1337/skills",
+  "license": "MIT",
+  "keywords": ["orchestration", "review", "subagents", "codex", "claude"]
+}

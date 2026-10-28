@@ -1,5 +1,0 @@
-interface:
-  display_name: "Orchestrator (Codex)"
-  short_description: "Orchestrate a task over Codex processes by mode"
-policy:
-  allow_implicit_invocation: false

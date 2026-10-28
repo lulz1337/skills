@@ -1,4 +1,4 @@
-# Speed: a slow suite stops being run (TD30–TD32)
+# Speed: keep routine feedback fast (TD30–TD32)
 
 A test suite's value is proportional to how often it runs. A suite that takes
 minutes runs on CI only; a suite that takes hours effectively never runs. The
@@ -25,7 +25,7 @@ unit under test, not the application's composition root; never initialize a
 framework, a dependency-injection container, or a plugin system in a unit or
 integration test unless that container IS the unit under test.
 
-## TD31 — no sleeps, no real timers (MEDIUM)
+## TD31 — avoid fixed waits in behavior tests (MEDIUM)
 
 A hardcoded sleep is a race condition with a trophy for showing up late: too
 short → flake, long enough → the suite crawls, and it is always both across
@@ -38,13 +38,15 @@ machines. Replace every sleep and real-timer wait with:
   integration/functional tests supply their inputs (TD21).
 
 The same applies to retry-with-backoff loops around assertions: they hide the
-missing completion signal instead of awaiting it.
+missing completion signal instead of awaiting it. Load tests may use bounded
+think time and polling when these model production behavior (see
+[`layers.md`](layers.md)); a static sleep finding there is only a suspicion.
 
 ## TD32 — build the world once, or not at all (MEDIUM)
 
-Per-test world building — reconstructing the application, reloading fixtures,
-re-running migrations on a fresh in-memory store for every single test — is
-almost always accidental, inherited from a copied setup block. Discipline:
+Per-test world building is often accidental, inherited from copied setup.
+Keep it proportional; migrations or isolated infrastructure setup are valid
+when those semantics are the subject. Discipline:
 
 - Share expensive **immutable** setup at the suite level; keep per-test setup
   for the mutable slice the test actually changes.

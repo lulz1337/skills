@@ -3,16 +3,20 @@
 An agent skill that creates branded diagrams as standalone HTML files with
 inline SVG and CSS, following an opinionated editorial design system. It can
 also export SVG/PNG and redraw existing `.drawio`, `.drawio.png`,
-`.drawio.svg`, or Mermaid `.mmd` sources at a chosen size and detail.
+`.drawio.svg`, Mermaid `.mmd`, or `.excalidraw` sources at a chosen size and
+detail.
 
-It covers 39 visual types: architecture, IT current-state, flowchart,
-sequence, state machine, ER/data model, timeline, swimlane, quadrant,
-radar/spider, polar chart, loop/flywheel, nested, tree, org chart, layer
-stack, Venn, pyramid/funnel, treemap, bar, line (with slopegraph, ridgeline,
-and bump variants), Gantt, scatter (with bubble and beeswarm variants),
-high-level, process, medallion, data flow, DP integration, DP security
-matrix, Sankey, fishbone, Wardley map, kanban, user journey, deployment,
-dependency graph, UML class, story map, and database schema. On top of the
+It covers 45 visual types: architecture, architecture delta, IT
+current-state, flowchart, sequence, state machine, ER/data model, timeline,
+swimlane, quadrant, radar/spider, polar chart, loop/flywheel, nested, tree, org
+chart, layer stack, exploded axonometric, axonometric plan, Venn,
+pyramid/funnel, treemap and marimekko, heatmap, bar and dumbbell, waterfall,
+line (with slopegraph, ridgeline, streamgraph, and bump variants), Gantt,
+scatter (with bubble and beeswarm variants), high-level, process, medallion,
+data flow, DP integration, DP security matrix, Sankey, fishbone, Wardley map,
+kanban, user journey, service blueprint, deployment, dependency graph, UML
+class, story map, and database schema. It also covers lifecycle phase maps and
+block decomposition trees. On top of the
 types it adds semantic patterns, callouts, accessible motion, and an optional
 sketchy/hand-drawn style.
 

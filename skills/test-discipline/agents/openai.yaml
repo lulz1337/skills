@@ -1,4 +1,4 @@
 interface:
   display_name: "Test Discipline"
-  short_description: "Review changed .spec and .test files"
-  default_prompt: "Use $test-discipline to review the .spec and .test files created, edited, or deleted by this task."
+  short_description: "Review changed .spec/.test, Go and conventional tests"
+  default_prompt: "Use $test-discipline to review changed tests and behavior gaps."

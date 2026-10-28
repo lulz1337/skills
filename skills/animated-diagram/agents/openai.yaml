@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animated Diagram"
+  short_description: "Animate service and agent flows in the diagram-design theme"
+  default_prompt: "Use $animated-diagram to animate an API request through an agent and its tools, using the default diagram-design theme."

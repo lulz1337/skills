@@ -63,16 +63,38 @@ journey; variants and edge cases live at integration.
   wearing an e2e costume.
 - If the e2e folder outgrows what you can list from memory, it is wrong.
 
-## TD04 — every business-logic function gets a unit test
+## TD04 — missing behavior matters; function counts do not
 
-Business logic means **decisions inside**: branches, calculations,
-thresholds, rules. Every pure function that carries them must have a unit
-test — the cheapest, highest-value test there is: trivial to write, instant
-to run, precise about what broke. "It's covered by an integration test above
-it" is not an exemption: the integration test says *that* something broke,
-the unit test says *what*.
+Business logic means decisions such as thresholds, permissions, pricing,
+state transitions, and validation. For each important behavior, ask what
+failure would escape the current suite and add the narrowest test that catches
+it. Do not require a test per function, branch, or count. A meaningful
+integration test can be sufficient when it proves the observable rule.
 
-Trivial mapping and pure delegation are exempt — there, the one question at
-the top of SKILL.md decides. The unit layer is the only one with no budget:
-edge cases, property cases, exhaustive branches are all welcome, as long as
-each test can fail for a reason other than "the test was edited".
+Trivial mapping, standard-library behavior, and pure delegation need no test
+unless this code owns a compatibility contract or a business decision. Never
+calculate an expected value by calling or reproducing the production
+algorithm; use an independent literal or a separately specified contract.
+
+## Load testing
+
+Choose an **open** arrival rate when production sends arrivals independently
+of completion (for example, incoming requests); report dropped iterations
+when relevant. Choose a **closed** user population when clients wait for each
+operation before starting another. Bound the operation and data mix to match
+the question, justify per-operation latency and error thresholds, and show
+sample adequacy, achieved throughput, source/environment/data, and whether
+the generator saturated.
+
+For asynchronous work, measure completion and lag by kind, not only enqueue
+responses. Include HTTP request durations in the deadline. Keep critical data
+loss, leaks, and corruption at zero tolerance; define expected 429 handling
+separately from unexpected errors. Think time and bounded polling are valid
+when they model users or completion. A smoke run finds wiring failures; it
+does not establish capacity.
+
+When a load workload uses a test-like filename such as `.test.mjs`, label its
+first lines `// test-layer: load`. A `.test.mjs` runner test without that label
+keeps ordinary test heuristics even when it lives beside workload files.
+
+References: [k6 open and closed models](https://grafana.com/docs/k6/latest/using-k6/scenarios/concepts/open-vs-closed/), [thresholds](https://grafana.com/docs/k6/latest/using-k6/thresholds/), and [dropped iterations](https://grafana.com/docs/k6/latest/using-k6/scenarios/concepts/dropped-iterations/).

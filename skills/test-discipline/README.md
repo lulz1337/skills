@@ -9,8 +9,8 @@ The rules are stack-agnostic on purpose — they are about behaviour and cost,
 never about a particular runner or library:
 
 - never assert on logs; never test a third-party dependency
-- e2e stays unmocked; integration/functional tests supply every input
-  (fixtures, fakes, fixed clock) and never reach real infrastructure
+- e2e stays unmocked; integration/functional tests supply their inputs and
+  reach real infrastructure only when it is isolated and is the subject
 - type-only needs use type-only imports so suites stay fast
 - no sleeps, no snapshots of structure, no implementation mirrors
 - a red test is information: fix the right side, never weaken the test
@@ -34,9 +34,11 @@ Or copy this folder into the skill directory of your agent harness.
 
 ## Usage
 
-The skill triggers only when a task writes, edits, or deletes a file whose name
-contains `.spec` or `.test`. Reading tests, discussing test strategy, and
-running a test suite do not trigger it. You can also invoke it directly:
+The skill triggers when a task creates, edits, or deletes a test file under the
+repository's convention: `.spec.*`, `.test.*`, Go `_test.go`, Python
+`test_*.py` or `*_test.py`, Java `*Test.java`, and similar runner patterns. An
+explicit request to review tests also triggers it. Reading tests, discussing
+test strategy, and running a test suite do not. You can also invoke it directly:
 
 ```
 Create `checkout.spec.ts` for the checkout behavior
@@ -50,7 +52,7 @@ For guaranteed activation, wire your harness to remind the agent after a
 matching file mutation. A reference Claude Code hook lives at
 [lulz1337/.dotfiles/claude/test-discipline-hook.py](https://github.com/lulz1337/.dotfiles/blob/main/claude/test-discipline-hook.py):
 it listens to `PostToolUse` for writes and edits, plus shell commands that
-delete `.spec` or `.test` files.
+delete test files.
 
 ## Structure
 
@@ -58,11 +60,15 @@ delete `.spec` or `.test` files.
   model, report format, and workflow.
 - `rules/` — one file per rule area, loaded as needed: `layers.md`
   (TD01–TD04), `scope.md` (TD10–TD14), `isolation.md` (TD20–TD22),
-  `speed.md` (TD30–TD32), `failures.md` (TD40–TD41).
+  `speed.md` (TD30–TD32), `failures.md` (TD40–TD41), and `fixtures.md` for
+  declared JSON schemas, fixtures and generated artifacts.
 - `scripts/review_tests.py` — dependency-free heuristic checker: scans test
   files, emits findings with severity + rule ID + file:line, provisional
   per-file verdicts, `--json` output, and gate-friendly exit codes
   (2 = BLOCKER present, 1 = HIGH).
+- `scripts/validate_fixtures.py` — validates the JSON fixtures a manifest
+  declares against their schemas. It needs `jsonschema`:
+  `pip install -r scripts/requirements-fixtures.txt`.
 
 ## License
 
